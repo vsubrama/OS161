@@ -380,7 +380,7 @@ rwlock_acquire_read(struct rwlock *rwlock)
 {
 		KASSERT(rwlock != NULL);
 			spinlock_acquire(&rwlock->rwspn_lock);
-			while (!wchan_isempty(rwlock->wlock_wchan))
+			while (rwlock->writer)
 				{
 					wchan_lock(rwlock->rlock_wchan);
 					spinlock_release(&rwlock->rwspn_lock);
