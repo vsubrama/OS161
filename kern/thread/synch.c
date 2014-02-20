@@ -432,7 +432,7 @@ rwlock_release_write(struct rwlock *rwlock)
 			kprintf("Inside rwlock_release_write bool set to false \n");
 			wchan_wakeall(rwlock->rlock_wchan);
 			kprintf("Inside rwlock_release_write readers woken \n");
-			wchan_wakeone(rwlock->wlock_wchan);
+			//wchan_wakeone(rwlock->wlock_wchan);
 			kprintf("Inside rwlock_release_write writers woken \n");
 			spinlock_release(&rwlock->rwspn_lock);
 }
