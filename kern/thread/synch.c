@@ -381,6 +381,7 @@ rwlock_acquire_read(struct rwlock *rwlock)
 		KASSERT(rwlock != NULL);
 		kprintf("Inside rwlock_acquire_read \n");
 			spinlock_acquire(&rwlock->rwspn_lock);
+			kprintf("Inside rwlock_acquire_read spinlock acquired\n");
 			while (!wchan_isempty(rwlock->wlock_wchan))
 				{
 					wchan_lock(rwlock->rlock_wchan);
