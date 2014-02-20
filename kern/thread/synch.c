@@ -395,7 +395,6 @@ void
 rwlock_release_read(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
-	kprintf("Inside rwlock_release_read \n");
 		spinlock_acquire(&rwlock->rwspn_lock);
 		if(rwlock->num_reader > 0)
 		{
@@ -404,7 +403,7 @@ rwlock_release_read(struct rwlock *rwlock)
 		}
 		if ((rwlock->num_reader == 0) && (rwlock->num_writer > 0))
 		{
-			kprintf("Inside rwlock_release_read reader 0\n");
+			kprintf("Inside rwlock_release_read wke writer 0\n");
 			wchan_wakeall(rwlock->wlock_wchan);
 		}
 		spinlock_release(&rwlock->rwspn_lock);

@@ -151,10 +151,11 @@ void cv_broadcast(struct cv *cv, struct lock *lock);
 struct rwlock {
         char *rwlock_name;
         volatile int num_reader;
-        bool writer;
+        volatile int num_writer;
         struct wchan *rlock_wchan;
         struct wchan *wlock_wchan;
         struct spinlock rwspn_lock;
+
 };
 
 struct rwlock * rwlock_create(const char *);
