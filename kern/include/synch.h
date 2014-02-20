@@ -74,6 +74,10 @@ void V(struct semaphore *);
  */
 struct lock {
         char *lk_name;
+        //added by vasanth
+        volatile struct thread *lock_owner;
+        struct wchan *lock_wchan;
+        struct spinlock spn_lock;
         // add what you need here
         // (don't forget to mark things volatile as needed)
 };
@@ -140,9 +144,17 @@ void cv_broadcast(struct cv *cv, struct lock *lock);
 /*
  * 13 Feb 2012 : GWA : Reader-writer locks.
  */
-
+/* we use two waiting channels one for reader and one for writer we do this so that
+ *if a writer is waiting all the readers will be put on sleep until the writers are
+ *done with their writing
+ */
 struct rwlock {
         char *rwlock_name;
+        volatile int num_reader;
+        bool writer;
+        struct wchan *rlock_wchan;
+        struct wchan *wlock_wchan;
+        struct spinlock rwspn_lock;
 };
 
 struct rwlock * rwlock_create(const char *);

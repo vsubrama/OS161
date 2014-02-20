@@ -158,11 +158,22 @@ lock_create(const char *name)
         }
 
         lock->lk_name = kstrdup(name);
+
         if (lock->lk_name == NULL) {
                 kfree(lock);
                 return NULL;
         }
-        
+        //added by vasanth
+        lock->lock_owner=NULL;
+        lock->lock_wchan = wchan_create(lock->lk_name);
+        	if (lock->lock_wchan == NULL)
+        	{
+        		kfree(lock->lk_name);
+        		kfree(lock);
+        		return NULL;
+        	}
+        	spinlock_init(&lock->spn_lock);
+
         // add stuff here as needed
         
         return lock;
@@ -171,7 +182,12 @@ lock_create(const char *name)
 void
 lock_destroy(struct lock *lock)
 {
+
         KASSERT(lock != NULL);
+        //added by vasanth
+        //KASSERT(lock->lock_owner == NULL);
+        spinlock_cleanup(&lock->spn_lock);
+        wchan_destroy(lock->lock_wchan);
 
         // add stuff here as needed
         
@@ -182,27 +198,59 @@ lock_destroy(struct lock *lock)
 void
 lock_acquire(struct lock *lock)
 {
+		//added by vasanth
+		KASSERT(lock != NULL);
+		spinlock_acquire(&lock->spn_lock);
+		while (lock->lock_owner!=NULL)
+			{
+				wchan_lock(lock->lock_wchan);
+				spinlock_release(&lock->spn_lock);
+				wchan_sleep(lock->lock_wchan);
+				spinlock_acquire(&lock->spn_lock);
+			}
+		lock->lock_owner=curthread;
+		spinlock_release(&lock->spn_lock);
         // Write this
 
-        (void)lock;  // suppress warning until code gets written
+       // (void)lock;  // suppress warning until code gets written
 }
 
 void
 lock_release(struct lock *lock)
 {
-        // Write this
+		//added by vasanth
+ 		KASSERT(lock != NULL);
+		spinlock_acquire(&lock->spn_lock);
+		if(lock->lock_owner==curthread)
+		{
+			lock->lock_owner=NULL;
+			wchan_wakeall(lock->lock_wchan);
+		}
+		spinlock_release(&lock->spn_lock);
+		// Write this
 
-        (void)lock;  // suppress warning until code gets written
+
+        //(void)lock;  // suppress warning until code gets written
 }
 
 bool
 lock_do_i_hold(struct lock *lock)
 {
         // Write this
+		bool status;
+		if (lock->lock_owner==curthread)
+		{
+			status = true;
+		}
+		else
+		{
+			status = false;
+		}
+		return status;
 
-        (void)lock;  // suppress warning until code gets written
+        //(void)lock;  // suppress warning until code gets written
 
-        return true; // dummy until code gets written
+        //return true; // dummy until code gets written
 }
 
 ////////////////////////////////////////////////////////////
@@ -264,4 +312,119 @@ cv_broadcast(struct cv *cv, struct lock *lock)
 	// Write this
 	(void)cv;    // suppress warning until code gets written
 	(void)lock;  // suppress warning until code gets written
+}
+struct rwlock *
+rwlock_create(const char *name)
+{
+	struct rwlock *rwlock;
+	size_t len = strlen (name);
+	char *rlock_wchan_name = kmalloc(sizeof(len+2));
+	char *wlock_wchan_name = kmalloc(sizeof(len+2));
+	strcpy ( rlock_wchan_name, name );
+	strcpy ( wlock_wchan_name, name );
+	rlock_wchan_name[len] = 'r';
+	wlock_wchan_name[len] = 'w';
+	rlock_wchan_name[len + 1] = '\0';
+	wlock_wchan_name[len + 1] = '\0';
+
+	        rwlock = kmalloc(sizeof(struct rwlock));
+	        if (rwlock == NULL) {
+	                return NULL;
+	        }
+	        rwlock->rwlock_name=kstrdup(name);
+
+	        if (rwlock->rwlock_name == NULL) {
+	                kfree(rwlock);
+	                return NULL;
+	        }
+	        rwlock->rlock_wchan = wchan_create(rlock_wchan_name);
+	        	if (rwlock->rlock_wchan == NULL)
+	        	{
+	        		kfree(rwlock->rwlock_name);
+	        		kfree(rwlock);
+	        		return NULL;
+	        	}
+	        rwlock->rlock_wchan = wchan_create(rlock_wchan_name);
+	          	if (rwlock->rlock_wchan == NULL)
+	           	{
+	           		kfree(rwlock->rwlock_name);
+	           		kfree(rwlock);
+	           		return NULL;
+	           	}
+	          	rwlock->num_reader=0;
+	          	rwlock->writer=false;
+	        	spinlock_init(&rwlock->rwspn_lock);
+
+	        // add stuff here as needed
+
+	        return rwlock;
+
+}
+void
+rwlock_destroy(struct rwlock *rwlock)
+{
+		KASSERT(rwlock != NULL);
+	        //added by vasanth
+	        //KASSERT(lock->lock_owner == NULL);
+	        spinlock_cleanup(&rwlock->rwspn_lock);
+	        wchan_destroy(rwlock->rlock_wchan);
+	        wchan_destroy(rwlock->wlock_wchan);
+	        // add stuff here as needed
+
+	        kfree(rwlock->rwlock_name);
+	        kfree(rwlock);
+}
+
+void
+rwlock_acquire_read(struct rwlock *rwlock)
+{
+		KASSERT(rwlock != NULL);
+			spinlock_acquire(&rwlock->rwspn_lock);
+			while (!wchan_isempty(rwlock->wlock_wchan))
+				{
+					wchan_lock(rwlock->rlock_wchan);
+					spinlock_release(&rwlock->rwspn_lock);
+					wchan_sleep(rwlock->rlock_wchan);
+					spinlock_acquire(&rwlock->rwspn_lock);
+				}
+			rwlock->num_reader = rwlock->num_reader + 1;
+			spinlock_release(&rwlock->rwspn_lock);
+}
+void
+rwlock_release_read(struct rwlock *rwlock)
+{
+	KASSERT(rwlock != NULL);
+		spinlock_acquire(&rwlock->rwspn_lock);
+		rwlock->num_reader = rwlock->num_reader - 1;
+		if (rwlock->num_reader == 0)
+		{
+			wchan_wakeone(rwlock->rlock_wchan);
+		}
+		spinlock_release(&rwlock->rwspn_lock);
+}
+void
+rwlock_acquire_write(struct rwlock *rwlock)
+{
+	KASSERT(rwlock != NULL);
+			spinlock_acquire(&rwlock->rwspn_lock);
+			while ((rwlock->num_reader>0) && (rwlock->writer))
+				{
+					wchan_lock(rwlock->wlock_wchan);
+					spinlock_release(&rwlock->rwspn_lock);
+					wchan_sleep(rwlock->wlock_wchan);
+					spinlock_acquire(&rwlock->rwspn_lock);
+				}
+			rwlock->writer=true;
+			spinlock_release(&rwlock->rwspn_lock);
+
+}
+void
+rwlock_release_write(struct rwlock *rwlock)
+{
+	KASSERT(rwlock != NULL);
+			spinlock_acquire(&rwlock->rwspn_lock);
+			rwlock->writer=false;
+			wchan_wakeall(rwlock->rlock_wchan);
+			wchan_wakeone(rwlock->wlock_wchan);
+			spinlock_release(&rwlock->rwspn_lock);
 }
