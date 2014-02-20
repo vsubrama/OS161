@@ -352,7 +352,7 @@ rwlock_create(const char *name)
 	           		return NULL;
 	           	}
 	          	rwlock->num_reader=0;
-	          	rwlock->writer=false;
+	          	rwlock->num_writer=0;
 	        	spinlock_init(&rwlock->rwspn_lock);
 
 	        // add stuff here as needed
@@ -381,9 +381,7 @@ rwlock_acquire_read(struct rwlock *rwlock)
 		KASSERT(rwlock != NULL);
 		kprintf("Inside rwlock_acquire_read \n");
 			spinlock_acquire(&rwlock->rwspn_lock);
-			kprintf("Inside rwlock_acquire_read spinlock acquired\n");
-			kprintf("bool value %d\n",wchan_isempty(rwlock->wlock_wchan));
-			while (!wchan_isempty(rwlock->wlock_wchan))
+			while (rwlock->num_writer>0)
 				{
 					wchan_lock(rwlock->rlock_wchan);
 					spinlock_release(&rwlock->rwspn_lock);
@@ -404,7 +402,7 @@ rwlock_release_read(struct rwlock *rwlock)
 		rwlock->num_reader = rwlock->num_reader - 1;
 		kprintf("Inside rwlock_release_read reader decremented\n");
 		}
-		if ((rwlock->num_reader == 0) && (!wchan_isempty(rwlock->wlock_wchan)))
+		if ((rwlock->num_reader == 0) && (rwlock->num_writer > 0))
 		{
 			kprintf("Inside rwlock_release_read reader 0\n");
 			wchan_wakeall(rwlock->wlock_wchan);
@@ -417,14 +415,14 @@ rwlock_acquire_write(struct rwlock *rwlock)
 	KASSERT(rwlock != NULL);
 	kprintf("Inside rwlock_acquire_write \n");
 			spinlock_acquire(&rwlock->rwspn_lock);
-			while ((rwlock->num_reader>0) && (rwlock->writer))
+			while ((rwlock->num_reader>0) && (rwlock->num_writer > 0))
 				{
 					wchan_lock(rwlock->wlock_wchan);
 					spinlock_release(&rwlock->rwspn_lock);
 					wchan_sleep(rwlock->wlock_wchan);
 					spinlock_acquire(&rwlock->rwspn_lock);
 				}
-			rwlock->writer=true;
+			rwlock->num_writer=1;
 			spinlock_release(&rwlock->rwspn_lock);
 
 }
@@ -435,7 +433,7 @@ rwlock_release_write(struct rwlock *rwlock)
 	kprintf("Inside rwlock_release_write \n");
 			spinlock_acquire(&rwlock->rwspn_lock);
 			kprintf("Inside rwlock_release_write spinlock acquired \n");
-			rwlock->writer=false;
+			rwlock->num_writer=rwlock->num_writer - 1;
 			kprintf("Inside rwlock_release_write bool set to false \n");
 			wchan_wakeall(rwlock->rlock_wchan);
 			kprintf("Inside rwlock_release_write readers woken \n");
