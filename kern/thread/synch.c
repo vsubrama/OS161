@@ -237,7 +237,8 @@ bool
 lock_do_i_hold(struct lock *lock)
 {
         // Write this
-		bool status;
+	bool status;
+		spinlock_acquire(&lock->spn_lock);
 		if (lock->lock_owner==curthread)
 		{
 			status = true;
@@ -246,6 +247,7 @@ lock_do_i_hold(struct lock *lock)
 		{
 			status = false;
 		}
+		spinlock_release(&lock->spn_lock);
 		return status;
 
         //(void)lock;  // suppress warning until code gets written
@@ -317,16 +319,6 @@ struct rwlock *
 rwlock_create(const char *name)
 {
 	struct rwlock *rwlock;
-	size_t len = strlen (name);
-	char *rlock_wchan_name = kmalloc(sizeof(len+2));
-	char *wlock_wchan_name = kmalloc(sizeof(len+2));
-	strcpy ( rlock_wchan_name, name );
-	strcpy ( wlock_wchan_name, name );
-	rlock_wchan_name[len] = 'r';
-	wlock_wchan_name[len] = 'w';
-	rlock_wchan_name[len + 1] = '\0';
-	wlock_wchan_name[len + 1] = '\0';
-
 	        rwlock = kmalloc(sizeof(struct rwlock));
 	        if (rwlock == NULL) {
 	                return NULL;
@@ -337,17 +329,18 @@ rwlock_create(const char *name)
 	                kfree(rwlock);
 	                return NULL;
 	        }
-	        rwlock->rlock_wchan = wchan_create(rlock_wchan_name);
+	        rwlock->rlock_wchan = wchan_create(rwlock->rwlock_name);
 	        	if (rwlock->rlock_wchan == NULL)
 	        	{
 	        		kfree(rwlock->rwlock_name);
 	        		kfree(rwlock);
 	        		return NULL;
 	        	}
-	        rwlock->rlock_wchan = wchan_create(rlock_wchan_name);
-	          	if (rwlock->rlock_wchan == NULL)
+	        rwlock->wlock_wchan = wchan_create(rwlock->rwlock_name);
+	          	if (rwlock->wlock_wchan == NULL)
 	           	{
 	           		kfree(rwlock->rwlock_name);
+	           		wchan_destroy(rwlock->rlock_wchan);
 	           		kfree(rwlock);
 	           		return NULL;
 	           	}
@@ -357,6 +350,8 @@ rwlock_create(const char *name)
 	          	if (rwlock->rw_lock == NULL)
 	          		           	{
 	          		           		kfree(rwlock->rwlock_name);
+	          		           		wchan_destroy(rwlock->rlock_wchan);
+	          		           		wchan_destroy(rwlock->wlock_wchan);
 	          		           		kfree(rwlock);
 	          		           		return NULL;
 	          		           	}
@@ -384,8 +379,8 @@ rwlock_acquire_read(struct rwlock *rwlock)
 {
 		KASSERT(rwlock != NULL);
 			lock_acquire(rwlock->rw_lock);
-			//kprintf("Inside rwlock_acquire_read acquired spinlock\n");
-			rwlock->num_reader++;
+
+
 			while (rwlock->num_writer>0)
 				{
 					wchan_lock(rwlock->rlock_wchan);
@@ -393,23 +388,20 @@ rwlock_acquire_read(struct rwlock *rwlock)
 					wchan_sleep(rwlock->rlock_wchan);
 					lock_acquire(rwlock->rw_lock);
 				}
-			//rwlock->num_reader = rwlock->num_reader + 1;
+			rwlock->num_reader++;
 			lock_release(rwlock->rw_lock);
 }
 void
 rwlock_release_read(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
+	KASSERT(rwlock->num_reader > 0);
 		lock_acquire(rwlock->rw_lock);
-		kprintf("Inside rwlock_release_read acquired spinlock\n");
 		if(rwlock->num_reader > 0)
 		{
-		rwlock->num_reader = rwlock->num_reader - 1;
+			rwlock->num_reader--;
 		}
-		if ((rwlock->num_reader == 0) && (rwlock->num_writer > 0))
-		{
 			wchan_wakeall(rwlock->wlock_wchan);
-		}
 		lock_release(rwlock->rw_lock);
 }
 void
@@ -417,7 +409,7 @@ rwlock_acquire_write(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
 			lock_acquire(rwlock->rw_lock);
-			kprintf("Inside rwlock_acquire_write acquired spinlock\n");
+
 			while ((rwlock->num_reader>0) || (rwlock->num_writer > 0))
 				{
 					wchan_lock(rwlock->wlock_wchan);
@@ -425,7 +417,7 @@ rwlock_acquire_write(struct rwlock *rwlock)
 					wchan_sleep(rwlock->wlock_wchan);
 					lock_acquire(rwlock->rw_lock);
 				}
-			rwlock->num_writer=1;
+			rwlock->num_writer++;
 			lock_release(rwlock->rw_lock);
 
 }
@@ -433,12 +425,10 @@ void
 rwlock_release_write(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
-	KASSERT(rwlock->num_writer == 1);
+	KASSERT(rwlock->num_writer > 0);
 	lock_acquire(rwlock->rw_lock);
-	kprintf("Inside rwlock_release_write acquired spinlock\n");
-	rwlock->num_writer = 0;
-	if(rwlock->num_reader > 0)
-		wchan_wakeall(rwlock->rlock_wchan);
-	wchan_wakeone(rwlock->wlock_wchan);
+	rwlock->num_writer--;
+	wchan_wakeall(rwlock->rlock_wchan);
+	wchan_wakeall(rwlock->wlock_wchan);
 	lock_release(rwlock->rw_lock);
 }

@@ -35,6 +35,7 @@
 #include <thread.h>
 #include <test.h>
 #include <synch.h>
+#include <wchan.h>
 
 /*
  * 08 Feb 2012 : GWA : Driver code is in kern/synchprobs/driver.c. We will
@@ -46,8 +47,71 @@
 // 13 Feb 2012 : GWA : Adding at the suggestion of Isaac Elbaz. These
 // functions will allow you to do local initialization. They are called at
 // the top of the corresponding driver code.
-
+struct whalemating{
+	volatile int num_male_whale;
+	volatile int num_female_whale;
+	volatile int num_matchmaker_whale;
+	struct wchan *male_wchan;
+	struct wchan *female_wchan;
+	struct wchan *matchmaker_wchan;
+	struct wchan *match_wchan;
+	volatile int match_found;
+	struct lock *lock;
+};
+struct whalemating *whale_mating;
 void whalemating_init() {
+
+
+	whale_mating = kmalloc(sizeof(struct whalemating));
+	if (whale_mating == NULL)
+	{
+		return;
+	}
+	whale_mating->male_wchan = wchan_create("name");
+	if (whale_mating->male_wchan == NULL)
+	{
+		kfree(whale_mating);
+		return;
+	}
+	whale_mating->female_wchan = wchan_create("name");
+	if (whale_mating->female_wchan == NULL)
+	{
+		wchan_destroy(whale_mating->male_wchan);
+		kfree(whale_mating);
+		return;
+	}
+	whale_mating->matchmaker_wchan = wchan_create("name");
+	if (whale_mating->matchmaker_wchan == NULL)
+	{
+		wchan_destroy(whale_mating->male_wchan);
+		wchan_destroy(whale_mating->female_wchan);
+		kfree(whale_mating);
+		return;
+	}
+	whale_mating->match_wchan = wchan_create("name");
+	if (whale_mating->matchmaker_wchan == NULL)
+		{
+			wchan_destroy(whale_mating->male_wchan);
+			wchan_destroy(whale_mating->female_wchan);
+			wchan_destroy(whale_mating->match_wchan);
+			kfree(whale_mating);
+			return;
+		}
+	whale_mating->lock = lock_create("name");
+	if (whale_mating->lock == NULL)
+	{
+		wchan_destroy(whale_mating->male_wchan);
+		wchan_destroy(whale_mating->female_wchan);
+		wchan_destroy(whale_mating->matchmaker_wchan);
+		wchan_destroy(whale_mating->match_wchan);
+		kfree(whale_mating);
+		return;
+	}
+	whale_mating->num_male_whale = 0;
+	whale_mating->num_female_whale = 0;
+	whale_mating->num_matchmaker_whale = 0;
+	whale_mating->match_found=0;
+
   return;
 }
 
@@ -55,6 +119,12 @@ void whalemating_init() {
 // care if your problems leak memory, but if you do, use this to clean up.
 
 void whalemating_cleanup() {
+	wchan_destroy(whale_mating->male_wchan);
+	wchan_destroy(whale_mating->female_wchan);
+	wchan_destroy(whale_mating->matchmaker_wchan);
+	wchan_destroy(whale_mating->match_wchan);
+	lock_destroy(whale_mating->lock);
+	kfree(whale_mating);
   return;
 }
 
@@ -64,9 +134,28 @@ male(void *p, unsigned long which)
 	struct semaphore * whalematingMenuSemaphore = (struct semaphore *)p;
   (void)which;
   
-  male_start();
-	// Implement this function 
-  male_end();
+ male_start();
+	// Implement this function
+ lock_acquire(whale_mating->lock);
+ while(whale_mating->num_male_whale>1)
+ {
+   wchan_lock(whale_mating->male_wchan);
+   lock_release(whale_mating->lock);
+   wchan_sleep(whale_mating->male_wchan);
+   lock_acquire(whale_mating->lock);
+ }
+ whale_mating->num_male_whale++;
+ wchan_wakeall(whale_mating->match_wchan);
+ while(!(whale_mating->match_found==1))
+ {
+	 wchan_lock(whale_mating->match_wchan);
+	 lock_release(whale_mating->lock);
+	 wchan_sleep(whale_mating->match_wchan);
+	 lock_acquire(whale_mating->lock);
+ }
+ lock_release(whale_mating->lock);
+ male_end();
+
 
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // whalemating driver can return to the menu cleanly.
@@ -81,14 +170,35 @@ female(void *p, unsigned long which)
   (void)which;
   
   female_start();
-	// Implement this function 
+
+	// Implement this function
+  lock_acquire(whale_mating->lock);
+   while(whale_mating->num_female_whale>1)
+   {
+     wchan_lock(whale_mating->female_wchan);
+     lock_release(whale_mating->lock);
+     wchan_sleep(whale_mating->female_wchan);
+     lock_acquire(whale_mating->lock);
+   }
+   whale_mating->num_female_whale++;
+   wchan_wakeall(whale_mating->match_wchan);
+   while(!(whale_mating->match_found==1))
+   {
+  	 wchan_lock(whale_mating->match_wchan);
+  	 lock_release(whale_mating->lock);
+  	 wchan_sleep(whale_mating->match_wchan);
+  	 lock_acquire(whale_mating->lock);
+   }
+   lock_release(whale_mating->lock);
   female_end();
-  
+
+
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // whalemating driver can return to the menu cleanly.
   V(whalematingMenuSemaphore);
   return;
 }
+
 
 void
 matchmaker(void *p, unsigned long which)
@@ -97,14 +207,43 @@ matchmaker(void *p, unsigned long which)
   (void)which;
   
   matchmaker_start();
-	// Implement this function 
+  lock_acquire(whale_mating->lock);
+  while(whale_mating->num_matchmaker_whale>1)
+  {
+     wchan_lock(whale_mating->matchmaker_wchan);
+     lock_release(whale_mating->lock);
+     wchan_sleep(whale_mating->matchmaker_wchan);
+     lock_acquire(whale_mating->lock);
+  }
+  whale_mating->num_matchmaker_whale++;
+  wchan_wakeall(whale_mating->match_wchan);
+  while((whale_mating->num_male_whale == 0) || (whale_mating->num_female_whale == 0))
+  {
+	  wchan_lock(whale_mating->match_wchan);
+	  lock_release(whale_mating->lock);
+	  wchan_sleep(whale_mating->match_wchan);
+	  lock_acquire(whale_mating->lock);
+  }
+  whale_mating->match_found=1;
+  lock_release(whale_mating->lock);
+  wchan_wakeall(whale_mating->match_wchan);
+  lock_acquire(whale_mating->lock);
+  whale_mating->num_male_whale--;
+  whale_mating->num_female_whale--;
+  whale_mating->num_matchmaker_whale--;
+  wchan_wakeall(whale_mating->male_wchan);
+  wchan_wakeall(whale_mating->female_wchan);
+  wchan_wakeall(whale_mating->matchmaker_wchan);
+  lock_release(whale_mating->lock);
+	// Implement this function
   matchmaker_end();
-  
+
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // whalemating driver can return to the menu cleanly.
   V(whalematingMenuSemaphore);
   return;
 }
+
 
 /*
  * You should implement your solution to the stoplight problem below. The
