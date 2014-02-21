@@ -364,8 +364,6 @@ void
 rwlock_destroy(struct rwlock *rwlock)
 {
 		KASSERT(rwlock != NULL);
-	        //added by vasanth
-	        //KASSERT(lock->lock_owner == NULL);
 	        spinlock_cleanup(&rwlock->rwspn_lock);
 	        wchan_destroy(rwlock->rlock_wchan);
 	        wchan_destroy(rwlock->wlock_wchan);
@@ -394,6 +392,7 @@ void
 rwlock_release_read(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
+		spinlock_acquire(&rwlock->rwspn_lock);
 		if(rwlock->num_reader > 0)
 		{
 		rwlock->num_reader = rwlock->num_reader - 1;
@@ -429,7 +428,7 @@ rwlock_release_write(struct rwlock *rwlock)
 			wchan_wakeall(rwlock->rlock_wchan);
 			if( rwlock->num_writer > 1)
 			{
-			wchan_wakeone(rwlock->wlock_wchan);
+			wchan_wakeall(rwlock->wlock_wchan);
 			}
 			spinlock_release(&rwlock->rwspn_lock);
 }
