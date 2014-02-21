@@ -154,7 +154,7 @@ struct rwlock {
         volatile int num_writer;
         struct wchan *rlock_wchan;
         struct wchan *wlock_wchan;
-        struct spinlock rwspn_lock;
+        struct lock *rw_lock;
 
 };
 
