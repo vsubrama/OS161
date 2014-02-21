@@ -435,7 +435,7 @@ rwlock_release_write(struct rwlock *rwlock)
 			lock_acquire(rwlock->rw_lock);
 			kprintf("Inside rwlock_release_write acquired spinlock\n");
 			rwlock->num_writer=rwlock->num_writer - 1;
-			wchan_wakeall(rwlock->rlock_wchan);
+			//wchan_wakeall(rwlock->rlock_wchan);
 			wchan_wakeall(rwlock->wlock_wchan);
 			lock_release(rwlock->rw_lock);
 }
