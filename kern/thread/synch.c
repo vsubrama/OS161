@@ -396,7 +396,7 @@ rwlock_release_read(struct rwlock *rwlock)
 		rwlock->num_reader--;
 	}
 	wchan_wakeall(rwlock->wlock_wchan);
-	wchan_wakall(rwlock->rlock_wchan);
+	wchan_wakeall(rwlock->rlock_wchan);
 	lock_release(rwlock->rw_lock);
 }
 void
