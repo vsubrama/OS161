@@ -378,6 +378,7 @@ rwlock_acquire_read(struct rwlock *rwlock)
 {
 		KASSERT(rwlock != NULL);
 			spinlock_acquire(&rwlock->rwspn_lock);
+			kprintf("Inside rwlock_acquire_read acquired spinlock\n");
 			while (rwlock->num_writer>0)
 				{
 					wchan_lock(rwlock->rlock_wchan);
@@ -393,6 +394,7 @@ rwlock_release_read(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
 		spinlock_acquire(&rwlock->rwspn_lock);
+		kprintf("Inside rwlock_release_read acquired spinlock\n");
 		if(rwlock->num_reader > 0)
 		{
 		rwlock->num_reader = rwlock->num_reader - 1;
@@ -408,6 +410,7 @@ rwlock_acquire_write(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
 			spinlock_acquire(&rwlock->rwspn_lock);
+			kprintf("Inside rwlock_acquire_write acquired spinlock\n");
 			while ((rwlock->num_reader>0) && (rwlock->num_writer > 0))
 				{
 					wchan_lock(rwlock->wlock_wchan);
@@ -424,6 +427,7 @@ rwlock_release_write(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
 			spinlock_acquire(&rwlock->rwspn_lock);
+			kprintf("Inside rwlock_release_write acquired spinlock\n");
 			rwlock->num_writer=rwlock->num_writer - 1;
 			wchan_wakeall(rwlock->rlock_wchan);
 			if( rwlock->num_writer > 1)
