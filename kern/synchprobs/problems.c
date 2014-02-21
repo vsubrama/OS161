@@ -225,12 +225,11 @@ matchmaker(void *p, unsigned long which)
 	  lock_acquire(whale_mating->lock);
   }
   whale_mating->match_found=1;
-  lock_release(whale_mating->lock);
   wchan_wakeall(whale_mating->match_wchan);
-  lock_acquire(whale_mating->lock);
   whale_mating->num_male_whale--;
   whale_mating->num_female_whale--;
   whale_mating->num_matchmaker_whale--;
+  whale_mating->match_found=0;
   wchan_wakeall(whale_mating->male_wchan);
   wchan_wakeall(whale_mating->female_wchan);
   wchan_wakeall(whale_mating->matchmaker_wchan);

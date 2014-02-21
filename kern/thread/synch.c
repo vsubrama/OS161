@@ -319,107 +319,100 @@ struct rwlock *
 rwlock_create(const char *name)
 {
 	struct rwlock *rwlock;
-	        rwlock = kmalloc(sizeof(struct rwlock));
-	        if (rwlock == NULL) {
-	                return NULL;
-	        }
-	        rwlock->rwlock_name=kstrdup(name);
-
-	        if (rwlock->rwlock_name == NULL) {
-	                kfree(rwlock);
-	                return NULL;
-	        }
-	        rwlock->rlock_wchan = wchan_create(rwlock->rwlock_name);
-	        	if (rwlock->rlock_wchan == NULL)
-	        	{
-	        		kfree(rwlock->rwlock_name);
-	        		kfree(rwlock);
-	        		return NULL;
-	        	}
-	        rwlock->wlock_wchan = wchan_create(rwlock->rwlock_name);
-	          	if (rwlock->wlock_wchan == NULL)
-	           	{
-	           		kfree(rwlock->rwlock_name);
-	           		wchan_destroy(rwlock->rlock_wchan);
-	           		kfree(rwlock);
-	           		return NULL;
-	           	}
-	          	rwlock->num_reader=0;
-	          	rwlock->num_writer=0;
-	          	rwlock->rw_lock = lock_create(rwlock->rwlock_name);
-	          	if (rwlock->rw_lock == NULL)
-	          		           	{
-	          		           		kfree(rwlock->rwlock_name);
-	          		           		wchan_destroy(rwlock->rlock_wchan);
-	          		           		wchan_destroy(rwlock->wlock_wchan);
-	          		           		kfree(rwlock);
-	          		           		return NULL;
-	          		           	}
-
-	        // add stuff here as needed
-
-	        return rwlock;
+	rwlock = kmalloc(sizeof(struct rwlock));
+	if (rwlock == NULL)
+	{
+		return NULL;
+	}
+	rwlock->rwlock_name=kstrdup(name);
+	if (rwlock->rwlock_name == NULL)
+	{
+	    kfree(rwlock);
+	    return NULL;
+	}
+	rwlock->rlock_wchan = wchan_create(rwlock->rwlock_name);
+	if (rwlock->rlock_wchan == NULL)
+	{
+		kfree(rwlock->rwlock_name);
+		kfree(rwlock);
+		return NULL;
+	}
+	rwlock->wlock_wchan = wchan_create(rwlock->rwlock_name);
+	if (rwlock->wlock_wchan == NULL)
+	{
+		kfree(rwlock->rwlock_name);
+		wchan_destroy(rwlock->rlock_wchan);
+		kfree(rwlock);
+		return NULL;
+	}
+	rwlock->num_reader=0;
+	rwlock->num_writer=0;
+	rwlock->rw_lock = lock_create(rwlock->rwlock_name);
+	if (rwlock->rw_lock == NULL)
+	{
+		kfree(rwlock->rwlock_name);
+		wchan_destroy(rwlock->rlock_wchan);
+		wchan_destroy(rwlock->wlock_wchan);
+		kfree(rwlock);
+		return NULL;
+	}
+	return rwlock;
 
 }
 void
 rwlock_destroy(struct rwlock *rwlock)
 {
-		KASSERT(rwlock != NULL);
-	        lock_destroy(rwlock->rw_lock);
-	        wchan_destroy(rwlock->rlock_wchan);
-	        wchan_destroy(rwlock->wlock_wchan);
-	        // add stuff here as needed
-
-	        kfree(rwlock->rwlock_name);
-	        kfree(rwlock);
+	KASSERT(rwlock != NULL);
+	lock_destroy(rwlock->rw_lock);
+	wchan_destroy(rwlock->rlock_wchan);
+	wchan_destroy(rwlock->wlock_wchan);
+	kfree(rwlock->rwlock_name);
+	kfree(rwlock);
 }
 
 void
 rwlock_acquire_read(struct rwlock *rwlock)
 {
-		KASSERT(rwlock != NULL);
-			lock_acquire(rwlock->rw_lock);
-
-
-			while (rwlock->num_writer>0)
-				{
-					wchan_lock(rwlock->rlock_wchan);
-					lock_release(rwlock->rw_lock);
-					wchan_sleep(rwlock->rlock_wchan);
-					lock_acquire(rwlock->rw_lock);
-				}
-			rwlock->num_reader++;
-			lock_release(rwlock->rw_lock);
+	KASSERT(rwlock != NULL);
+	lock_acquire(rwlock->rw_lock);
+	while (rwlock->num_writer>0)
+	{
+		wchan_lock(rwlock->rlock_wchan);
+		lock_release(rwlock->rw_lock);
+		wchan_sleep(rwlock->rlock_wchan);
+		lock_acquire(rwlock->rw_lock);
+	}
+	rwlock->num_reader++;
+	lock_release(rwlock->rw_lock);
 }
 void
 rwlock_release_read(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
 	KASSERT(rwlock->num_reader > 0);
-		lock_acquire(rwlock->rw_lock);
-		if(rwlock->num_reader > 0)
-		{
-			rwlock->num_reader--;
-		}
-			wchan_wakeall(rwlock->wlock_wchan);
-		lock_release(rwlock->rw_lock);
+	lock_acquire(rwlock->rw_lock);
+	if(rwlock->num_reader > 0)
+	{
+		rwlock->num_reader--;
+	}
+	wchan_wakeall(rwlock->wlock_wchan);
+	wchan_wakall(rwlock->rlock_wchan);
+	lock_release(rwlock->rw_lock);
 }
 void
 rwlock_acquire_write(struct rwlock *rwlock)
 {
 	KASSERT(rwlock != NULL);
-			lock_acquire(rwlock->rw_lock);
-
-			while ((rwlock->num_reader>0) || (rwlock->num_writer > 0))
-				{
-					wchan_lock(rwlock->wlock_wchan);
-					lock_release(rwlock->rw_lock);
-					wchan_sleep(rwlock->wlock_wchan);
-					lock_acquire(rwlock->rw_lock);
-				}
-			rwlock->num_writer++;
-			lock_release(rwlock->rw_lock);
-
+	lock_acquire(rwlock->rw_lock);
+	while ((rwlock->num_reader>0) || (rwlock->num_writer > 0))
+	{
+		wchan_lock(rwlock->wlock_wchan);
+		lock_release(rwlock->rw_lock);
+		wchan_sleep(rwlock->wlock_wchan);
+		lock_acquire(rwlock->rw_lock);
+	}
+	rwlock->num_writer++;
+	lock_release(rwlock->rw_lock);
 }
 void
 rwlock_release_write(struct rwlock *rwlock)
