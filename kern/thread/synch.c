@@ -405,7 +405,7 @@ rwlock_release_read(struct rwlock *rwlock)
 		{
 		rwlock->num_reader = rwlock->num_reader - 1;
 		}
-		if ((rwlock->num_reader == 0)) //&& (rwlock->num_writer > 0))
+		if ((rwlock->num_reader == 0) && (rwlock->num_writer > 0))
 		{
 			wchan_wakeall(rwlock->wlock_wchan);
 		}
