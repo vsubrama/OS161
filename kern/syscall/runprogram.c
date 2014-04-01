@@ -44,7 +44,8 @@
 #include <vfs.h>
 #include <syscall.h>
 #include <test.h>
-
+#include <synch.h>
+#include <unistd.h>
 /*
  * Load program "progname" and start running it in usermode.
  * Does not return except on error.
@@ -58,6 +59,56 @@ runprogram(char *progname)
 	vaddr_t entrypoint, stackptr;
 	int result;
 
+	struct vnode *o, *i, *e;
+	char *con0 = kstrdup("con:");
+	char *con1 = kstrdup("con:");
+	char *con2 = kstrdup("con:");
+	int inpTemp = vfs_open(con0,O_RDONLY,0664,&i);
+	int outTemp = vfs_open(con1,O_WRONLY,0664,&o);
+	int errTemp = vfs_open(con2,O_WRONLY,0664,&e);
+	KASSERT(inpTemp!=1);
+	KASSERT(outTemp!=1);
+	KASSERT(errTemp!=1);
+
+	struct fTable *input, *output, *error;
+	input= kmalloc(sizeof(struct fTable));
+	output = kmalloc(sizeof(struct fTable));
+	error = kmalloc(sizeof(struct fTable));
+	KASSERT(input!=NULL);
+	KASSERT(output!=NULL);
+	KASSERT(error!=NULL);
+
+	input->name=kstrdup("Standard_Input");
+	input->offset=0;
+	input->ref_count =0;
+	input->status=O_RDONLY;
+	input->vn=i;
+	input->lock=lock_create("Standard Input");
+
+	output->name=kstrdup("Standard_Output");
+	output->offset=0;
+	output->ref_count =0;
+	output->status=O_WRONLY;
+	output->vn=o;
+	output->lock=lock_create("Standard Output");
+
+	error->name=kstrdup("Standard_Error");
+	error->offset=0;
+	error->ref_count =0;
+	error->status=O_WRONLY;
+	error->vn=e;
+	error->lock=lock_create("Standard Error");
+	KASSERT(input->lock!=NULL);
+	KASSERT(output->lock!=NULL);
+	KASSERT(error->lock!=NULL);
+
+	curthread->ft[STDIN_FILENO]=input;
+	curthread->ft[STDOUT_FILENO]=output;
+	curthread->ft[STDERR_FILENO]=error;
+	kfree(con0);
+	kfree(con1);
+	kfree(con2);
+	//kprintf("IO fd's initialized\n");
 	/* Open the file. */
 	result = vfs_open(progname, O_RDONLY, 0, &v);
 	if (result) {

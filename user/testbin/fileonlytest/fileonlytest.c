@@ -83,6 +83,7 @@ main(int argc, char **argv)
 			writebuf[j] = i * 2 * j;
 		}
 		len = write(fh, writebuf, sizeof(writebuf));
+		printf("Written %d bytes.\n",len);
 		if (len != sizeof(writebuf)) {
 			err(1, "write failed");
 		}

@@ -96,5 +96,7 @@
 /* Max number of iovec structures at once for readv/writev/preadv/pwritev */
 #define __IOV_MAX       1024
 
+/*Maximum length of file name */
+
 
 #endif /* _KERN_LIMITS_H_ */

@@ -215,7 +215,7 @@ write(int fd, userptr_t buf, size_t buflen, int *err)
 off_t
 lseek(int fd,off_t pos, int whence,int *err)
 {
-	off_t nPos;
+	off_t nPos=0;
 	struct stat eoFILE;
 	//kprintf("lseek entered\n");
 	if (curthread->ft[fd] == NULL)

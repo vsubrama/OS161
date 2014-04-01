@@ -38,7 +38,7 @@
 
 #include <spinlock.h>
 #include <threadlist.h>
-
+#include <limits.h>
 struct addrspace;
 struct cpu;
 struct vnode;
@@ -57,6 +57,7 @@ struct vnode;
 #define SAME_STACK(p1, p2)     (((p1) & STACK_MASK) == ((p2) & STACK_MASK))
 
 
+
 /* States a thread can be in. */
 typedef enum {
 	S_RUN,		/* running */
@@ -64,6 +65,15 @@ typedef enum {
 	S_SLEEP,	/* sleeping */
 	S_ZOMBIE,	/* zombie; exited but not yet deleted */
 } threadstate_t;
+
+struct fTable{
+	    char *name;
+	    int status;
+	    off_t offset;
+	    int ref_count;
+	    struct lock *lock;
+	    struct vnode *vn;
+	};
 
 /* Thread structure. */
 struct thread {
@@ -101,6 +111,8 @@ struct thread {
 	int t_curspl;			/* Current spl*() state */
 	int t_iplhigh_count;		/* # of times IPL has been raised */
 
+
+
 	/*
 	 * Public fields
 	 */
@@ -112,7 +124,10 @@ struct thread {
 	struct vnode *t_cwd;		/* current working directory */
 
 	/* add more here as needed */
+	struct fTable *ft[OPEN_MAX];          /*File table pointer*/
+	int priority;
 };
+
 
 /* Call once during system startup to allocate data structures. */
 void thread_bootstrap(void);

@@ -57,5 +57,12 @@ void enter_new_process(int argc, userptr_t argv, vaddr_t stackptr,
 
 int sys_reboot(int code);
 int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
-
+int open(userptr_t filename, int flags,int *err);
+int close(int fd);
+int read(int fd, userptr_t buf, size_t buflen,int *err);
+int write(int fd, userptr_t buf, size_t buflen,int *err);
+int dup2(int oldfd, int newfd);
+off_t lseek(int fd,off_t pos, int whence, int *err);
+int chdir(const_userptr_t pathname);
+int __getcwd(userptr_t buf, size_t buflen);
 #endif /* _SYSCALL_H_ */
