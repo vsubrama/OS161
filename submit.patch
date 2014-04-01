@@ -1,0 +1,484 @@
+diff --git a/kern/include/synch.h b/kern/include/synch.h
+index ac3714b..780b4b7 100644
+--- a/kern/include/synch.h
++++ b/kern/include/synch.h
+@@ -74,6 +74,10 @@ void V(struct semaphore *);
+  */
+ struct lock {
+         char *lk_name;
++        //added by vasanth
++        volatile struct thread *lock_owner;
++        struct wchan *lock_wchan;
++        struct spinlock spn_lock;
+         // add what you need here
+         // (don't forget to mark things volatile as needed)
+ };
+@@ -140,9 +144,18 @@ void cv_broadcast(struct cv *cv, struct lock *lock);
+ /*
+  * 13 Feb 2012 : GWA : Reader-writer locks.
+  */
+-
++/* we use two waiting channels one for reader and one for writer we do this so that
++ *if a writer is waiting all the readers will be put on sleep until the writers are
++ *done with their writing
++ */
+ struct rwlock {
+         char *rwlock_name;
++        volatile int num_reader;
++        volatile int num_writer;
++        struct wchan *rlock_wchan;
++        struct wchan *wlock_wchan;
++        struct lock *rw_lock;
++
+ };
+ 
+ struct rwlock * rwlock_create(const char *);
+diff --git a/kern/startup/main.c b/kern/startup/main.c
+index be4c4b8..969575b 100644
+--- a/kern/startup/main.c
++++ b/kern/startup/main.c
+@@ -1,3 +1,4 @@
++/*vsubrama@buffalo.edu*/
+ /*
+  * Copyright (c) 2000, 2001, 2002, 2003, 2004, 2005, 2008, 2009
+  *	The President and Fellows of Harvard College.
+diff --git a/kern/synchprobs/problems.c b/kern/synchprobs/problems.c
+index 81d2f0e..2347583 100644
+--- a/kern/synchprobs/problems.c
++++ b/kern/synchprobs/problems.c
+@@ -35,6 +35,7 @@
+ #include <thread.h>
+ #include <test.h>
+ #include <synch.h>
++#include <wchan.h>
+ 
+ /*
+  * 08 Feb 2012 : GWA : Driver code is in kern/synchprobs/driver.c. We will
+@@ -46,8 +47,71 @@
+ // 13 Feb 2012 : GWA : Adding at the suggestion of Isaac Elbaz. These
+ // functions will allow you to do local initialization. They are called at
+ // the top of the corresponding driver code.
+-
++struct whalemating{
++	volatile int num_male_whale;
++	volatile int num_female_whale;
++	volatile int num_matchmaker_whale;
++	struct wchan *male_wchan;
++	struct wchan *female_wchan;
++	struct wchan *matchmaker_wchan;
++	struct wchan *match_wchan;
++	volatile int match_found;
++	struct lock *lock;
++};
++struct whalemating *whale_mating;
+ void whalemating_init() {
++
++
++	whale_mating = kmalloc(sizeof(struct whalemating));
++	if (whale_mating == NULL)
++	{
++		return;
++	}
++	whale_mating->male_wchan = wchan_create("name");
++	if (whale_mating->male_wchan == NULL)
++	{
++		kfree(whale_mating);
++		return;
++	}
++	whale_mating->female_wchan = wchan_create("name");
++	if (whale_mating->female_wchan == NULL)
++	{
++		wchan_destroy(whale_mating->male_wchan);
++		kfree(whale_mating);
++		return;
++	}
++	whale_mating->matchmaker_wchan = wchan_create("name");
++	if (whale_mating->matchmaker_wchan == NULL)
++	{
++		wchan_destroy(whale_mating->male_wchan);
++		wchan_destroy(whale_mating->female_wchan);
++		kfree(whale_mating);
++		return;
++	}
++	whale_mating->match_wchan = wchan_create("name");
++	if (whale_mating->matchmaker_wchan == NULL)
++		{
++			wchan_destroy(whale_mating->male_wchan);
++			wchan_destroy(whale_mating->female_wchan);
++			wchan_destroy(whale_mating->match_wchan);
++			kfree(whale_mating);
++			return;
++		}
++	whale_mating->lock = lock_create("name");
++	if (whale_mating->lock == NULL)
++	{
++		wchan_destroy(whale_mating->male_wchan);
++		wchan_destroy(whale_mating->female_wchan);
++		wchan_destroy(whale_mating->matchmaker_wchan);
++		wchan_destroy(whale_mating->match_wchan);
++		kfree(whale_mating);
++		return;
++	}
++	whale_mating->num_male_whale = 0;
++	whale_mating->num_female_whale = 0;
++	whale_mating->num_matchmaker_whale = 0;
++	whale_mating->match_found=0;
++
+   return;
+ }
+ 
+@@ -55,6 +119,12 @@ void whalemating_init() {
+ // care if your problems leak memory, but if you do, use this to clean up.
+ 
+ void whalemating_cleanup() {
++	wchan_destroy(whale_mating->male_wchan);
++	wchan_destroy(whale_mating->female_wchan);
++	wchan_destroy(whale_mating->matchmaker_wchan);
++	wchan_destroy(whale_mating->match_wchan);
++	lock_destroy(whale_mating->lock);
++	kfree(whale_mating);
+   return;
+ }
+ 
+@@ -64,9 +134,28 @@ male(void *p, unsigned long which)
+ 	struct semaphore * whalematingMenuSemaphore = (struct semaphore *)p;
+   (void)which;
+   
+-  male_start();
+-	// Implement this function 
+-  male_end();
++ male_start();
++	// Implement this function
++ lock_acquire(whale_mating->lock);
++ while(whale_mating->num_male_whale>1)
++ {
++   wchan_lock(whale_mating->male_wchan);
++   lock_release(whale_mating->lock);
++   wchan_sleep(whale_mating->male_wchan);
++   lock_acquire(whale_mating->lock);
++ }
++ whale_mating->num_male_whale++;
++ wchan_wakeall(whale_mating->match_wchan);
++ while(!(whale_mating->match_found==1))
++ {
++	 wchan_lock(whale_mating->match_wchan);
++	 lock_release(whale_mating->lock);
++	 wchan_sleep(whale_mating->match_wchan);
++	 lock_acquire(whale_mating->lock);
++ }
++ lock_release(whale_mating->lock);
++ male_end();
++
+ 
+   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
+   // whalemating driver can return to the menu cleanly.
+@@ -81,15 +170,36 @@ female(void *p, unsigned long which)
+   (void)which;
+   
+   female_start();
+-	// Implement this function 
++
++	// Implement this function
++  lock_acquire(whale_mating->lock);
++   while(whale_mating->num_female_whale>1)
++   {
++     wchan_lock(whale_mating->female_wchan);
++     lock_release(whale_mating->lock);
++     wchan_sleep(whale_mating->female_wchan);
++     lock_acquire(whale_mating->lock);
++   }
++   whale_mating->num_female_whale++;
++   wchan_wakeall(whale_mating->match_wchan);
++   while(!(whale_mating->match_found==1))
++   {
++  	 wchan_lock(whale_mating->match_wchan);
++  	 lock_release(whale_mating->lock);
++  	 wchan_sleep(whale_mating->match_wchan);
++  	 lock_acquire(whale_mating->lock);
++   }
++   lock_release(whale_mating->lock);
+   female_end();
+-  
++
++
+   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
+   // whalemating driver can return to the menu cleanly.
+   V(whalematingMenuSemaphore);
+   return;
+ }
+ 
++
+ void
+ matchmaker(void *p, unsigned long which)
+ {
+@@ -97,15 +207,43 @@ matchmaker(void *p, unsigned long which)
+   (void)which;
+   
+   matchmaker_start();
+-	// Implement this function 
++  lock_acquire(whale_mating->lock);
++  while(whale_mating->num_matchmaker_whale>1)
++  {
++     wchan_lock(whale_mating->matchmaker_wchan);
++     lock_release(whale_mating->lock);
++     wchan_sleep(whale_mating->matchmaker_wchan);
++     lock_acquire(whale_mating->lock);
++  }
++  whale_mating->num_matchmaker_whale++;
++  wchan_wakeall(whale_mating->match_wchan);
++  while((whale_mating->num_male_whale == 0) || (whale_mating->num_female_whale == 0))
++  {
++	  wchan_lock(whale_mating->match_wchan);
++	  lock_release(whale_mating->lock);
++	  wchan_sleep(whale_mating->match_wchan);
++	  lock_acquire(whale_mating->lock);
++  }
++  whale_mating->match_found=1;
++  wchan_wakeall(whale_mating->match_wchan);
++  whale_mating->num_male_whale--;
++  whale_mating->num_female_whale--;
++  whale_mating->num_matchmaker_whale--;
++  whale_mating->match_found=0;
++  wchan_wakeall(whale_mating->male_wchan);
++  wchan_wakeall(whale_mating->female_wchan);
++  wchan_wakeall(whale_mating->matchmaker_wchan);
++  lock_release(whale_mating->lock);
++	// Implement this function
+   matchmaker_end();
+-  
++
+   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
+   // whalemating driver can return to the menu cleanly.
+   V(whalematingMenuSemaphore);
+   return;
+ }
+ 
++
+ /*
+  * You should implement your solution to the stoplight problem below. The
+  * quadrant and direction mappings for reference: (although the problem is,
+diff --git a/kern/thread/synch.c b/kern/thread/synch.c
+index 9a7468c..058ef58 100644
+--- a/kern/thread/synch.c
++++ b/kern/thread/synch.c
+@@ -158,11 +158,22 @@ lock_create(const char *name)
+         }
+ 
+         lock->lk_name = kstrdup(name);
++
+         if (lock->lk_name == NULL) {
+                 kfree(lock);
+                 return NULL;
+         }
+-        
++        //added by vasanth
++        lock->lock_owner=NULL;
++        lock->lock_wchan = wchan_create(lock->lk_name);
++        	if (lock->lock_wchan == NULL)
++        	{
++        		kfree(lock->lk_name);
++        		kfree(lock);
++        		return NULL;
++        	}
++        	spinlock_init(&lock->spn_lock);
++
+         // add stuff here as needed
+         
+         return lock;
+@@ -171,7 +182,12 @@ lock_create(const char *name)
+ void
+ lock_destroy(struct lock *lock)
+ {
++
+         KASSERT(lock != NULL);
++        //added by vasanth
++        //KASSERT(lock->lock_owner == NULL);
++        spinlock_cleanup(&lock->spn_lock);
++        wchan_destroy(lock->lock_wchan);
+ 
+         // add stuff here as needed
+         
+@@ -182,27 +198,61 @@ lock_destroy(struct lock *lock)
+ void
+ lock_acquire(struct lock *lock)
+ {
++		//added by vasanth
++		KASSERT(lock != NULL);
++		spinlock_acquire(&lock->spn_lock);
++		while (lock->lock_owner!=NULL)
++			{
++				wchan_lock(lock->lock_wchan);
++				spinlock_release(&lock->spn_lock);
++				wchan_sleep(lock->lock_wchan);
++				spinlock_acquire(&lock->spn_lock);
++			}
++		lock->lock_owner=curthread;
++		spinlock_release(&lock->spn_lock);
+         // Write this
+ 
+-        (void)lock;  // suppress warning until code gets written
++       // (void)lock;  // suppress warning until code gets written
+ }
+ 
+ void
+ lock_release(struct lock *lock)
+ {
+-        // Write this
+-
+-        (void)lock;  // suppress warning until code gets written
++		//added by vasanth
++ 		KASSERT(lock != NULL);
++		spinlock_acquire(&lock->spn_lock);
++		if(lock->lock_owner==curthread)
++		{
++			lock->lock_owner=NULL;
++			wchan_wakeall(lock->lock_wchan);
++		}
++		spinlock_release(&lock->spn_lock);
++		// Write this
++
++
++        //(void)lock;  // suppress warning until code gets written
+ }
+ 
+ bool
+ lock_do_i_hold(struct lock *lock)
+ {
+         // Write this
+-
+-        (void)lock;  // suppress warning until code gets written
+-
+-        return true; // dummy until code gets written
++	bool status;
++		spinlock_acquire(&lock->spn_lock);
++		if (lock->lock_owner==curthread)
++		{
++			status = true;
++		}
++		else
++		{
++			status = false;
++		}
++		spinlock_release(&lock->spn_lock);
++		return status;
++
++        //(void)lock;  // suppress warning until code gets written
++
++        //return true; // dummy until code gets written
+ }
+ 
+ ////////////////////////////////////////////////////////////
+@@ -265,3 +315,113 @@ cv_broadcast(struct cv *cv, struct lock *lock)
+ 	(void)cv;    // suppress warning until code gets written
+ 	(void)lock;  // suppress warning until code gets written
+ }
++struct rwlock *
++rwlock_create(const char *name)
++{
++	struct rwlock *rwlock;
++	rwlock = kmalloc(sizeof(struct rwlock));
++	if (rwlock == NULL)
++	{
++		return NULL;
++	}
++	rwlock->rwlock_name=kstrdup(name);
++	if (rwlock->rwlock_name == NULL)
++	{
++	    kfree(rwlock);
++	    return NULL;
++	}
++	rwlock->rlock_wchan = wchan_create(rwlock->rwlock_name);
++	if (rwlock->rlock_wchan == NULL)
++	{
++		kfree(rwlock->rwlock_name);
++		kfree(rwlock);
++		return NULL;
++	}
++	rwlock->wlock_wchan = wchan_create(rwlock->rwlock_name);
++	if (rwlock->wlock_wchan == NULL)
++	{
++		kfree(rwlock->rwlock_name);
++		wchan_destroy(rwlock->rlock_wchan);
++		kfree(rwlock);
++		return NULL;
++	}
++	rwlock->num_reader=0;
++	rwlock->num_writer=0;
++	rwlock->rw_lock = lock_create(rwlock->rwlock_name);
++	if (rwlock->rw_lock == NULL)
++	{
++		kfree(rwlock->rwlock_name);
++		wchan_destroy(rwlock->rlock_wchan);
++		wchan_destroy(rwlock->wlock_wchan);
++		kfree(rwlock);
++		return NULL;
++	}
++	return rwlock;
++
++}
++void
++rwlock_destroy(struct rwlock *rwlock)
++{
++	KASSERT(rwlock != NULL);
++	lock_destroy(rwlock->rw_lock);
++	wchan_destroy(rwlock->rlock_wchan);
++	wchan_destroy(rwlock->wlock_wchan);
++	kfree(rwlock->rwlock_name);
++	kfree(rwlock);
++}
++
++void
++rwlock_acquire_read(struct rwlock *rwlock)
++{
++	KASSERT(rwlock != NULL);
++	lock_acquire(rwlock->rw_lock);
++	while (rwlock->num_writer>0)
++	{
++		wchan_lock(rwlock->rlock_wchan);
++		lock_release(rwlock->rw_lock);
++		wchan_sleep(rwlock->rlock_wchan);
++		lock_acquire(rwlock->rw_lock);
++	}
++	rwlock->num_reader++;
++	lock_release(rwlock->rw_lock);
++}
++void
++rwlock_release_read(struct rwlock *rwlock)
++{
++	KASSERT(rwlock != NULL);
++	KASSERT(rwlock->num_reader > 0);
++	lock_acquire(rwlock->rw_lock);
++	if(rwlock->num_reader > 0)
++	{
++		rwlock->num_reader--;
++	}
++	wchan_wakeall(rwlock->wlock_wchan);
++	wchan_wakeall(rwlock->rlock_wchan);
++	lock_release(rwlock->rw_lock);
++}
++void
++rwlock_acquire_write(struct rwlock *rwlock)
++{
++	KASSERT(rwlock != NULL);
++	lock_acquire(rwlock->rw_lock);
++	while ((rwlock->num_reader>0) || (rwlock->num_writer > 0))
++	{
++		wchan_lock(rwlock->wlock_wchan);
++		lock_release(rwlock->rw_lock);
++		wchan_sleep(rwlock->wlock_wchan);
++		lock_acquire(rwlock->rw_lock);
++	}
++	rwlock->num_writer++;
++	lock_release(rwlock->rw_lock);
++}
++void
++rwlock_release_write(struct rwlock *rwlock)
++{
++	KASSERT(rwlock != NULL);
++	KASSERT(rwlock->num_writer > 0);
++	lock_acquire(rwlock->rw_lock);
++	rwlock->num_writer--;
++	wchan_wakeall(rwlock->rlock_wchan);
++	wchan_wakeall(rwlock->wlock_wchan);
++	lock_release(rwlock->rw_lock);
++}
