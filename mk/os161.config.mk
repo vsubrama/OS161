@@ -295,7 +295,7 @@
 #
 
 # Locations of things.
-OSTREE=$(HOME)/os161/root	# Root directory to install into.
+OSTREE=$(HOME)/os161/root-team	# Root directory to install into.
 WORKDIR=$(TOP)/build		# Top of tree to build into.
 BUILDSYMLINKS=yes		# yes => link build -> $(BUILDTOP)/$(HERE).
 

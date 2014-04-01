@@ -277,9 +277,15 @@ cv_create(const char *name)
         }
         
         // add stuff here as needed
+        /* Added by Babu :
+        * Adding a wait channel for making the threads wait during cv_acquire
+        */
+        cv->cv_waitchan = wchan_create(cv->cv_name);
+
         
         return cv;
 }
+
 
 void
 cv_destroy(struct cv *cv)
@@ -287,6 +293,10 @@ cv_destroy(struct cv *cv)
         KASSERT(cv != NULL);
 
         // add stuff here as needed
+        /*
+         * Added by Babu : wchan destructor
+         */
+        wchan_destroy(cv->cv_waitchan);
         
         kfree(cv->cv_name);
         kfree(cv);
@@ -295,26 +305,73 @@ cv_destroy(struct cv *cv)
 void
 cv_wait(struct cv *cv, struct lock *lock)
 {
-        // Write this
-        (void)cv;    // suppress warning until code gets written
-        (void)lock;  // suppress warning until code gets written
+    // Write this
+	/** Release lock, wait and then acquire once awake */
+	KASSERT(cv != NULL);
+	KASSERT(lock != NULL);
+
+	//kprintf("Waiting in CV\n");
+
+	if(lock_do_i_hold(lock))
+		lock_release(lock);
+
+	//kprintf("Sleeping in CV\n");
+	wchan_lock(cv->cv_waitchan);
+	wchan_sleep(cv->cv_waitchan);
+
+	//kprintf("Came out of CV\n");
+
+	if(!lock_do_i_hold(lock))
+		lock_acquire(lock);
 }
 
 void
 cv_signal(struct cv *cv, struct lock *lock)
 {
-        // Write this
-	(void)cv;    // suppress warning until code gets written
-	(void)lock;  // suppress warning until code gets written
+    // Write this
+	KASSERT(cv != NULL);
+	KASSERT(lock != NULL);
+
+	if(!lock_do_i_hold(lock))
+		lock_acquire(lock);
+
+	/*if(lock_do_i_hold(lock))
+		lock_release(lock);*/
+
+	//kprintf("Signaling CV\n");
+
+	wchan_wakeone(cv->cv_waitchan);
+	//wchan_unlock(cv->cv_waitchan);
+
+	/*if(!lock_do_i_hold(lock))
+		lock_acquire(lock);*/
+	(void) lock;
 }
 
 void
 cv_broadcast(struct cv *cv, struct lock *lock)
 {
 	// Write this
-	(void)cv;    // suppress warning until code gets written
-	(void)lock;  // suppress warning until code gets written
+	KASSERT(cv != NULL);
+	KASSERT(lock != NULL);
+
+	if(!lock_do_i_hold(lock))
+		lock_acquire(lock);
+
+	/*if(lock_do_i_hold(lock))
+		lock_release(lock);*/
+
+	//kprintf("Broadcasting CV\n");
+	wchan_wakeall(cv->cv_waitchan);
+
+
+	/*if(!lock_do_i_hold(lock))
+		lock_acquire(lock);*/
+
+
+	(void) lock;
 }
+
 struct rwlock *
 rwlock_create(const char *name)
 {
