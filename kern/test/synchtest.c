@@ -313,11 +313,13 @@ cvtest2thread(void *junk, unsigned long num)
 	for (i=0; i<NCVLOOPS; i++) {
 		lock_acquire(testlock);
 		while (testval1 != num) {
-      testval2 = 0;
+			testval2 = 0;
+
 			cv_wait(testcv, testlock);
-      testval2 = 0xFFFFFFFF;
+			testval2 = 0xFFFFFFFF;
 		}
 		testval2 = num;
+
 		cv_broadcast(testcv, testlock);
 		thread_yield();
 		kprintf("Thread %lu\n", testval2);

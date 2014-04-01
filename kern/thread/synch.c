@@ -332,8 +332,8 @@ cv_signal(struct cv *cv, struct lock *lock)
 	KASSERT(cv != NULL);
 	KASSERT(lock != NULL);
 
-	if(!lock_do_i_hold(lock))
-		lock_acquire(lock);
+	/*if(!lock_do_i_hold(lock))
+		lock_acquire(lock);*/
 
 	/*if(lock_do_i_hold(lock))
 		lock_release(lock);*/
@@ -355,8 +355,8 @@ cv_broadcast(struct cv *cv, struct lock *lock)
 	KASSERT(cv != NULL);
 	KASSERT(lock != NULL);
 
-	if(!lock_do_i_hold(lock))
-		lock_acquire(lock);
+	/*if(!lock_do_i_hold(lock))
+		lock_acquire(lock);*/
 
 	/*if(lock_do_i_hold(lock))
 		lock_release(lock);*/
