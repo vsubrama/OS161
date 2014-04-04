@@ -277,7 +277,7 @@ thread_destroy(struct thread *thread)
 	thread->t_wchan_name = "DESTROYED";
 
 	kfree(thread->t_name);
-	kfree(thread->ft);
+	//if(thread->ft!=NULL)kfree(thread->ft);
 	kfree(thread);
 }
 
@@ -498,7 +498,6 @@ thread_fork(const char *name,
 	    struct thread **ret)
 {
 	struct thread *newthread;
-
 	newthread = thread_create(name);
 	if (newthread == NULL) {
 		return ENOMEM;
@@ -880,15 +879,17 @@ schedule(void)
 	spinlock_acquire(&curcpu->c_runqueue_lock);
 	if (curcpu->c_runqueue.tl_count>1)
 	{
-		struct threadlistnode tnode = curcpu->c_runqueue.tl_head;
-		int head_priority =(int) curcpu->c_runqueue.tl_head.tln_next->tln_self->priority;
-		while(tnode.tln_next != NULL)
+		struct threadlistnode *tnode = &curcpu->c_runqueue.tl_head;
+		while(tnode->tln_next->tln_next != NULL )
 		{
-			tnode =tnode.tln_next->tln_self->t_listnode;
-			if (tnode.tln_self->priority > head_priority)
+			int head_priority =(int) curcpu->c_runqueue.tl_head.tln_next->tln_self->priority;
+			tnode = tnode->tln_next;
+			int curr_priority = tnode->tln_self->priority;
+			kprintf("curr_priority %d\n",curr_priority);
+			if ( curr_priority < head_priority)
 			{
-				threadlist_remove(&curcpu->c_runqueue,tnode.tln_self);
-				threadlist_addhead(&curcpu->c_runqueue,tnode.tln_self);
+				threadlist_remove(&curcpu->c_runqueue,tnode->tln_self);
+				threadlist_addhead(&curcpu->c_runqueue,tnode->tln_self);
 			}
 		}
 	}
