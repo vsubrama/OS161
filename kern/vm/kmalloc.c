@@ -525,7 +525,6 @@ subpage_kfree(void *ptr)
 	spinlock_acquire(&kmalloc_spinlock);
 
 	checksubpages();
-
 	for (pr = allbase; pr; pr = pr->next_all) {
 		prpage = PR_PAGEADDR(pr);
 		blktype = PR_BLOCKTYPE(pr);

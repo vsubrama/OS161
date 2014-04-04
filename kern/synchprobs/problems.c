@@ -186,6 +186,7 @@ female(void *p, unsigned long which)
    {
   	 wchan_lock(whale_mating->match_wchan);
   	 lock_release(whale_mating->lock);
+  	 kprintf("Problem here\n");
   	 wchan_sleep(whale_mating->match_wchan);
   	 lock_acquire(whale_mating->lock);
    }
