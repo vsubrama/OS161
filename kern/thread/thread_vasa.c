@@ -47,6 +47,7 @@
 #include <addrspace.h>
 #include <mainbus.h>
 #include <vnode.h>
+#include <limits.h>
 
 #include "opt-synchprobs.h"
 #include "opt-defaultscheduler.h"
@@ -152,9 +153,20 @@ thread_create(const char *name)
 	/* VFS fields */
 	thread->t_cwd = NULL;
 
-	DEBUG(DB_THREADS, "Thread created %s", thread->t_name);
-
 	/* If you add to struct thread, be sure to initialize here */
+	/*File descriptor*/
+		int i;
+		for (i=0;i<OPEN_MAX;i++)
+		{
+			thread->ft[i] = kmalloc(sizeof(struct file_table *));
+			if (thread->ft[i] == NULL)
+					{
+						kfree(thread);
+						return NULL;
+					}
+			thread->ft[i]=0;
+		}
+		thread->priority = 5;
 
 	return thread;
 }
@@ -264,11 +276,9 @@ thread_destroy(struct thread *thread)
 	/* sheer paranoia */
 	thread->t_wchan_name = "DESTROYED";
 
-	DEBUG(DB_THREADS, "%s Thread destroyed.",thread->t_name); 
-
 	kfree(thread->t_name);
+	//if(thread->ft!=NULL)kfree(thread->ft);
 	kfree(thread);
-
 }
 
 /*
@@ -488,9 +498,7 @@ thread_fork(const char *name,
 	    struct thread **ret)
 {
 	struct thread *newthread;
-
 	newthread = thread_create(name);
-	//kprintf("Thread name : %s/n",newthread->t_name);
 	if (newthread == NULL) {
 		return ENOMEM;
 	}
@@ -526,8 +534,9 @@ thread_fork(const char *name,
 	 */
 	newthread->t_iplhigh_count++;
 
+	//Might have to add the copy of the file table --vasanth
+
 	/* Set up the switchframe so entrypoint() gets called */
-	//kprintf("Data entrypnt : %s/n", (char *)data1);
 	switchframe_init(newthread, entrypoint, data1, data2);
 
 	/* Lock the current cpu's run queue and make the new thread runnable */
@@ -581,6 +590,11 @@ thread_switch(threadstate_t newstate, struct wchan *wc)
 
 	/* Check the stack guard band. */
 	thread_checkstack(cur);
+	if ( cur->priority > 0 && cur->priority< 10)
+	{
+		if (newstate == S_SLEEP)cur->priority--;     //increment priority if thread was sleeping
+		if (newstate == S_READY)cur->priority++;     //decrement priority if thread was ready
+	}
 
 	/* Lock the run queue. */
 	spinlock_acquire(&curcpu->c_runqueue_lock);
@@ -591,6 +605,7 @@ thread_switch(threadstate_t newstate, struct wchan *wc)
 		splx(spl);
 		return;
 	}
+
 
 	/* Put the thread in the right place. */
 	switch (newstate) {
@@ -624,6 +639,7 @@ thread_switch(threadstate_t newstate, struct wchan *wc)
 		break;
 	}
 	cur->t_state = newstate;
+
 
 	/*
 	 * Get the next thread. While there isn't one, call md_idle().
@@ -860,6 +876,24 @@ schedule(void)
 {
   // 28 Feb 2012 : GWA : Implement your scheduler that prioritizes
   // "interactive" threads here.
+	spinlock_acquire(&curcpu->c_runqueue_lock);
+	if (curcpu->c_runqueue.tl_count>1)
+	{
+		struct threadlistnode *tnode = &curcpu->c_runqueue.tl_head;
+		while(tnode->tln_next->tln_next != NULL )
+		{
+			int head_priority =(int) curcpu->c_runqueue.tl_head.tln_next->tln_self->priority;
+			tnode = tnode->tln_next;
+			int curr_priority = tnode->tln_self->priority;
+			kprintf("curr_priority %d\n",curr_priority);
+			if ( curr_priority < head_priority)
+			{
+				threadlist_remove(&curcpu->c_runqueue,tnode->tln_self);
+				threadlist_addhead(&curcpu->c_runqueue,tnode->tln_self);
+			}
+		}
+	}
+	spinlock_release(&curcpu->c_runqueue_lock);
 }
 #endif
 

@@ -63,6 +63,12 @@ void whalemating_cleanup(void);
  * Traffic light.
  */
 
+//volatile unsigned long intersectionOccupied = 0;
+
+struct lock *lockquad0;
+struct lock *lockquad1;
+struct lock *lockquad2;
+struct lock *lockquad3;
 void inQuadrant(int);
 void leaveIntersection(void);
 int stoplight(int, char **);
@@ -72,6 +78,7 @@ void turnleft(void *, unsigned long);
 void turnright(void *, unsigned long);
 void stoplight_init(void);
 void stoplight_cleanup(void);
+void inQuadrantSync(unsigned long);
 
 /*
  * Test code.
