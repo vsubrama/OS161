@@ -150,6 +150,7 @@ male(void *p, unsigned long which)
  {
 	 wchan_lock(whale_mating->match_wchan);
 	 lock_release(whale_mating->lock);
+	 //kprintf("male problem here\n");
 	 wchan_sleep(whale_mating->match_wchan);
 	 lock_acquire(whale_mating->lock);
  }
@@ -186,7 +187,7 @@ female(void *p, unsigned long which)
    {
   	 wchan_lock(whale_mating->match_wchan);
   	 lock_release(whale_mating->lock);
-  	 kprintf("Problem here\n");
+  	 //kprintf("Female problem here\n");
   	 wchan_sleep(whale_mating->match_wchan);
   	 lock_acquire(whale_mating->lock);
    }
@@ -227,9 +228,20 @@ matchmaker(void *p, unsigned long which)
   }
   whale_mating->match_found=1;
   wchan_wakeall(whale_mating->match_wchan);
+  lock_release(whale_mating->lock);
+  lock_acquire(whale_mating->lock);
   whale_mating->num_male_whale--;
+ // kprintf("Male Whale %d\n",whale_mating->num_male_whale);
+  lock_release(whale_mating->lock);
+  lock_acquire(whale_mating->lock);
   whale_mating->num_female_whale--;
+  lock_release(whale_mating->lock);
+    lock_acquire(whale_mating->lock);
+  //kprintf("feMale Whale %d\n",whale_mating->num_female_whale);
   whale_mating->num_matchmaker_whale--;
+ // kprintf("num_matchmaker_whale Whale %d\n",whale_mating->num_matchmaker_whale);
+  lock_release(whale_mating->lock);
+    lock_acquire(whale_mating->lock);
   whale_mating->match_found=0;
   wchan_wakeall(whale_mating->male_wchan);
   wchan_wakeall(whale_mating->female_wchan);
