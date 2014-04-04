@@ -307,16 +307,10 @@ cv_wait(struct cv *cv, struct lock *lock)
 	KASSERT(cv != NULL);
 	KASSERT(lock != NULL);
 
-	//kprintf("Waiting in CV\n");
-
-	if(lock_do_i_hold(lock))
-		lock_release(lock);
-
-	//kprintf("Sleeping in CV\n");
 	wchan_lock(cv->cv_waitchan);
+	if(lock_do_i_hold(lock))
+			lock_release(lock);
 	wchan_sleep(cv->cv_waitchan);
-
-	//kprintf("Came out of CV\n");
 
 	if(!lock_do_i_hold(lock))
 		lock_acquire(lock);
@@ -329,19 +323,15 @@ cv_signal(struct cv *cv, struct lock *lock)
 	KASSERT(cv != NULL);
 	KASSERT(lock != NULL);
 
-	/*if(!lock_do_i_hold(lock))
-		lock_acquire(lock);*/
 
-	/*if(lock_do_i_hold(lock))
-		lock_release(lock);*/
 
 	//kprintf("Signaling CV\n");
 
 	wchan_wakeone(cv->cv_waitchan);
 	//wchan_unlock(cv->cv_waitchan);
 
-	/*if(!lock_do_i_hold(lock))
-		lock_acquire(lock);*/
+
+
 	(void) lock;
 }
 
@@ -352,19 +342,7 @@ cv_broadcast(struct cv *cv, struct lock *lock)
 	KASSERT(cv != NULL);
 	KASSERT(lock != NULL);
 
-	/*if(!lock_do_i_hold(lock))
-		lock_acquire(lock);*/
-
-	/*if(lock_do_i_hold(lock))
-		lock_release(lock);*/
-
-	//kprintf("Broadcasting CV\n");
 	wchan_wakeall(cv->cv_waitchan);
-
-
-	/*if(!lock_do_i_hold(lock))
-		lock_acquire(lock);*/
-
 
 	(void) lock;
 }
