@@ -60,7 +60,6 @@ mallocthread(void *sm, unsigned long num)
 	void *oldptr=NULL;
 	void *oldptr2=NULL;
 	int i;
-
 	for (i=0; i<NTRIES; i++) {
 		ptr = kmalloc(ITEMSIZE);
 		if (ptr==NULL) {

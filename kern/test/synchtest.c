@@ -309,7 +309,6 @@ cvtest2thread(void *junk, unsigned long num)
 {
 	int i;
 	(void)junk;
-
 	for (i=0; i<NCVLOOPS; i++) {
 		lock_acquire(testlock);
 		while (testval1 != num) {
@@ -326,6 +325,7 @@ cvtest2thread(void *junk, unsigned long num)
 		testval1 = (testval1 + NTHREADS - 1)%NTHREADS;
 		lock_release(testlock);
 	}
+	kprintf("cv2 test exiting\n");
 	V(donesem);
 }
 
@@ -346,6 +346,7 @@ cvtest2(int nargs, char **args)
 	for (i=0; i<NTHREADS; i++) {
 		result = thread_fork("synchtest", cvtest2thread, NULL, i,
 				      NULL);
+		//kprintf("Thread fork failure\n");
 		if (result) {
 			panic("cvtest: thread_fork failed: %s\n",
 			      strerror(result));
