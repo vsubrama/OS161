@@ -120,10 +120,9 @@ P(struct semaphore *sem)
 		 */
 		wchan_lock(sem->sem_wchan);
 		spinlock_release(&sem->sem_lock);
-        wchan_sleep(sem->sem_wchan);
-
+	        wchan_sleep(sem->sem_wchan);
 		spinlock_acquire(&sem->sem_lock);
-    }
+	}
 	KASSERT(sem->sem_count > 0);
 	sem->sem_count--;
 	spinlock_release(&sem->sem_lock);
