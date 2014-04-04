@@ -27,45 +27,26 @@
  * SUCH DAMAGE.
  */
 
-#include <process.h>
-
-
-#ifndef _SYSCALL_H_
-#define _SYSCALL_H_
-
-
-struct trapframe; /* from <machine/trapframe.h> */
-
 /*
- * The system call dispatcher.
+ * forktest - test fork().
+ *
+ * This should work correctly when fork is implemented.
+ *
+ * It should also continue to work after subsequent assignments, most
+ * notably after implementing the virtual memory system.
  */
 
-void syscall(struct trapframe *tf);
-
-/*
- * Support functions.
- */
-
-/* Helper for fork(). You write this. */
-void enter_forked_process(struct trapframe *tf);
-
-/* Enter user mode. Does not return. */
-void enter_new_process(int argc, userptr_t argv, vaddr_t stackptr,
-		       vaddr_t entrypoint);
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <err.h>
 
 
-/*
- * Prototypes for IN-KERNEL entry points for system call implementations.
- */
-
-int sys_reboot(int code);
-int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
-int open(userptr_t filename, int flags,int *err);
-int close(int fd);
-int read(int fd, userptr_t buf, size_t buflen,int *err);
-int write(int fd, userptr_t buf, size_t buflen,int *err);
-int dup2(int oldfd, int newfd);
-off_t lseek(int fd,off_t pos, int whence, int *err);
-int chdir(const_userptr_t pathname);
-int __getcwd(userptr_t buf, size_t buflen);
-#endif /* _SYSCALL_H_ */
+int
+main()
+{
+	//printf("entering sysexit test");
+	fork();
+	return 0;
+}

@@ -148,9 +148,11 @@ allocpageref(void)
 	unsigned i,j;
 	uint32_t k;
 
+	DEBUG(DB_KMALLOC, "Allocating Page Reference ..... ");
 	for (i=0; i<INUSE_WORDS; i++) {
 		if (pagerefs_inuse[i]==0xffffffff) {
 			/* full */
+			DEBUG(DB_KMALLOC, "Virtual Memory is full. All pages are being used...");
 			continue;
 		}
 		for (k=1,j=0; k!=0; k<<=1,j++) {
@@ -179,6 +181,7 @@ freepageref(struct pageref *p)
 	k = ((uint32_t)1) << (j%32);
 	KASSERT((pagerefs_inuse[i] & k) != 0);
 	pagerefs_inuse[i] &= ~k;
+	DEBUG(DB_VM, "VM Page references freed ");
 }
 
 ////////////////////////////////////////
@@ -218,6 +221,7 @@ checksubpage(struct pageref *pr)
 
 	KASSERT(spinlock_do_i_hold(&kmalloc_spinlock));
 
+	DEBUG(DB_VM, "Checking Sub Pages...");
 	if (pr->freelist_offset == INVALID_OFFSET) {
 		KASSERT(pr->nfree==0);
 		return;
@@ -226,6 +230,7 @@ checksubpage(struct pageref *pr)
 	prpage = PR_PAGEADDR(pr);
 	blktype = PR_BLOCKTYPE(pr);
 
+	DEBUG(DB_VM,"Free List of VM Pages %u",pr->freelist_offset);
 	KASSERT(pr->freelist_offset < PAGE_SIZE);
 	KASSERT(pr->freelist_offset % sizes[blktype] == 0);
 

@@ -114,6 +114,33 @@ syscall(struct trapframe *tf)
 				 (userptr_t)tf->tf_a1);
 		break;
 
+		/**
+		 * Added by Babu : case statements for process related syscalls
+		 */
+	    case SYS_fork:
+	        err = sys_fork(&retval, tf);
+	    	break;
+
+	    case SYS_execv:
+	    	//err = sys_execv((char *)tf->tf_a0, (char *)tf->tf_a1);
+	    	break;
+	    case SYS__exit:
+	    	err = sys__exit(tf->tf_a0);
+	    	break;
+
+	    case SYS_waitpid:
+	    	err = sys_waitpid(&retval, (int32_t *)tf->tf_a0);
+	    	break;
+
+	    case SYS_getpid:
+	    	err = sys_getpid(&retval);
+	    	break;
+
+	    case SYS_getppid:
+	    	err = sys_getppid(&retval);
+	    	break;
+
+
 	    /* Add stuff here */
 	    case SYS_open:
 	    retval = open((userptr_t)tf->tf_a0,

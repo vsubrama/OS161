@@ -48,6 +48,7 @@
 #include <mainbus.h>
 #include <vnode.h>
 #include <limits.h>
+#include <process.h>
 
 #include "opt-synchprobs.h"
 #include "opt-defaultscheduler.h"
@@ -127,6 +128,14 @@ thread_create(const char *name)
 		return NULL;
 	}
 
+	/**
+	 * Added by Babu :
+	 * Initializing parent process thread
+	 */
+	thread->t_process = kmalloc(sizeof(struct process));
+
+	if(thread->t_process == NULL)
+		panic("Process creation failed during thread_create");
 	thread->t_name = kstrdup(name);
 	if (thread->t_name == NULL) {
 		kfree(thread);
@@ -153,6 +162,11 @@ thread_create(const char *name)
 	/* VFS fields */
 	thread->t_cwd = NULL;
 
+	thread->t_process->p_pid_self = allocate_pid();
+	thread->t_process->p_parent_process = curthread->t_process; /* -1 To denote that the process is not created by fork() ??*/
+	thread->t_process->p_exitsem = sem_create("exitsem", 0);
+	thread->t_process->p_thread = thread;
+	DEBUG(DB_THREADS, "Thread created %s", thread->t_name);
 	/* If you add to struct thread, be sure to initialize here */
 	/*File descriptor*/
 		int i;
@@ -276,6 +290,7 @@ thread_destroy(struct thread *thread)
 	/* sheer paranoia */
 	thread->t_wchan_name = "DESTROYED";
 
+	DEBUG(DB_THREADS, "%s Thread destroyed.",thread->t_name); 
 	kfree(thread->t_name);
 	//if(thread->ft!=NULL)kfree(thread->ft);
 	kfree(thread);

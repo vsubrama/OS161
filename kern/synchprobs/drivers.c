@@ -158,12 +158,13 @@ int stoplight(int nargs, char **args) {
 	int i, direction, turn, err = 0;
 	char name[32];
 
+	kprintf("Stop light called\n");
+	stoplight_init();
 	stoplightMenuSemaphore = sem_create("Stoplight Driver Semaphore", 0);
 	if (stoplightMenuSemaphore == NULL ) {
 		panic("stoplight: sem_create failed.\n");
 	}
-	kprintf("Stop light called\n");
-	stoplight_init();
+
 
 	for (i = 0; i < NCARS; i++) {
 

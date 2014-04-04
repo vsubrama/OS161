@@ -116,6 +116,11 @@ struct thread {
 	/*
 	 * Public fields
 	 */
+	/**
+	 * Added by Babu :
+	 * pointer to parent process data structure
+	 */
+	struct process *t_process;
 
 	/* VM */
 	struct addrspace *t_addrspace;	/* virtual address space */

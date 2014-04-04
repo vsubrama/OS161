@@ -52,6 +52,7 @@ static
 int
 dev_open(struct vnode *v, int flags)
 {
+	DEBUG(DB_VFS, "Calling Device Open...");
 	struct device *d = v->vn_data;
 
 	if (flags & (O_CREAT | O_TRUNC | O_EXCL | O_APPEND)) {
@@ -69,6 +70,7 @@ static
 int
 dev_close(struct vnode *v)
 {
+	DEBUG(DB_VFS, "Calling Device Close...");
 	struct device *d = v->vn_data;
 	return d->d_close(d);
 }
@@ -81,6 +83,7 @@ static
 int
 dev_reclaim(struct vnode *v)
 {
+	DEBUG(DB_VFS, "Calling Device Reclaim...");
 	(void)v;
 	/* nothing - device continues to exist even when not in use */
 	return 0;
@@ -93,6 +96,7 @@ static
 int
 dev_read(struct vnode *v, struct uio *uio)
 {
+	DEBUG(DB_VFS, "Calling Device Read...");
 	struct device *d = v->vn_data;
 	KASSERT(uio->uio_rw == UIO_READ);
 	return d->d_io(d, uio);
