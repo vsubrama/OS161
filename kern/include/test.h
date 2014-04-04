@@ -65,10 +65,15 @@ void whalemating_cleanup(void);
 
 //volatile unsigned long intersectionOccupied = 0;
 
+/**
+* Added by Babu:
+* Locks for each quadrants
+**/
 struct lock *lockquad0;
 struct lock *lockquad1;
 struct lock *lockquad2;
 struct lock *lockquad3;
+
 void inQuadrant(int);
 void leaveIntersection(void);
 int stoplight(int, char **);

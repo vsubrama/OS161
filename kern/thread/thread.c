@@ -885,7 +885,7 @@ schedule(void)
 			int head_priority =(int) curcpu->c_runqueue.tl_head.tln_next->tln_self->priority;
 			tnode = tnode->tln_next;
 			int curr_priority = tnode->tln_self->priority;
-			kprintf("curr_priority %d\n",curr_priority);
+			//kprintf("curr_priority %d\n",curr_priority);
 			if ( curr_priority < head_priority)
 			{
 				threadlist_remove(&curcpu->c_runqueue,tnode->tln_self);
