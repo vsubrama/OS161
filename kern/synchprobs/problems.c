@@ -272,27 +272,48 @@ matchmaker(void *p, unsigned long which)
  * functions in drivers.c.
  */
 
+/**
+ * Added by Babu : 27 Feb 2012
+ * Solving Stop light problem with the help
+ * of locks and predefined semaphores.
+ */
+
+
 // 13 Feb 2012 : GWA : Adding at the suggestion of Isaac Elbaz. These
 // functions will allow you to do local initialization. They are called at
 // the top of the corresponding driver code.
 
 void stoplight_init() {
-  return;
+	lockquad0 = lock_create("quad0lk");
+	lockquad1 = lock_create("quad1lk");
+	lockquad2 = lock_create("quad2lk");
+	lockquad3 = lock_create("quad3lk");
+	return;
 }
 
 // 20 Feb 2012 : GWA : Adding at the suggestion of Nikhil Londhe. We don't
 // care if your problems leak memory, but if you do, use this to clean up.
 
 void stoplight_cleanup() {
-  return;
+	lock_destroy(lockquad0);
+	lock_destroy(lockquad1);
+	lock_destroy(lockquad2);
+	lock_destroy(lockquad3);
+	return;
 }
 
 void
 gostraight(void *p, unsigned long direction)
 {
 	struct semaphore * stoplightMenuSemaphore = (struct semaphore *)p;
-  (void)direction;
-  
+	unsigned long destQuadrant1 = direction;
+	unsigned long destQuadrant2 = (direction + 3) % 4;
+	kprintf("go straight....\n");
+
+	inQuadrantSync(destQuadrant1);
+	inQuadrantSync(destQuadrant2);
+	leaveIntersection();
+
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // stoplight driver can return to the menu cleanly.
   V(stoplightMenuSemaphore);
@@ -302,8 +323,16 @@ gostraight(void *p, unsigned long direction)
 void
 turnleft(void *p, unsigned long direction)
 {
+	kprintf("turn left....\n");
 	struct semaphore * stoplightMenuSemaphore = (struct semaphore *)p;
-  (void)direction;
+	unsigned long destQuadrant1 = direction;
+	unsigned long destQuadrant2 = (direction + 3) % 4;
+	unsigned long destQuadrant3 = (direction + 2) % 4;
+
+	inQuadrantSync(destQuadrant1);
+	inQuadrantSync(destQuadrant2);
+	inQuadrantSync(destQuadrant3);
+	leaveIntersection();
   
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // stoplight driver can return to the menu cleanly.
@@ -314,11 +343,54 @@ turnleft(void *p, unsigned long direction)
 void
 turnright(void *p, unsigned long direction)
 {
+	kprintf("turn right....\n");
 	struct semaphore * stoplightMenuSemaphore = (struct semaphore *)p;
-  (void)direction;
+	unsigned long destQuadrant1 = direction;
+
+	inQuadrantSync(destQuadrant1);
+	leaveIntersection();
 
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // stoplight driver can return to the menu cleanly.
   V(stoplightMenuSemaphore);
   return;
+}
+
+/*
+ * Added by Babu
+ * Function which serve as a wrapper to inQuadrant operations
+ * along with synchronization primitive like lock
+ */
+void
+inQuadrantSync(unsigned long destQuadrant)
+{
+	struct lock *lockquad;
+	switch (destQuadrant)
+	{
+		case 0:
+			lockquad = lockquad0;
+			break;
+		case 1:
+			lockquad = lockquad1;
+			break;
+		case 2:
+			lockquad = lockquad2;
+			break;
+		case 3:
+			lockquad = lockquad3;
+			break;
+		default:
+			panic("unknown direction");
+			break;
+	}
+
+	/* If the lock is not held before, then acquire it */
+	if(lock_do_i_hold(lockquad))
+	{
+		lock_acquire(lockquad);
+		inQuadrant(destQuadrant);
+		kprintf("Releasing lock 0\n");
+		lock_release(lockquad);
+	}
+	return;
 }
