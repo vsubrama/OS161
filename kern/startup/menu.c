@@ -100,6 +100,7 @@ cmd_progthread(void *ptr, unsigned long nargs)
 
 	strcpy(progname, args[0]);
 
+	kprintf("progname : %s\n", progname);
 	result = runprogram(progname);
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
@@ -133,6 +134,10 @@ common_prog(int nargs, char **args)
 		"synchronization-problems kernel.\n");
 #endif
 
+//	char *cargs = "/testbin/sysexittest";
+//args[1] = cargs;
+	//args
+	kprintf("before thread fork args  : %s, %s\n", args[0], args[1]);
 	result = thread_fork(args[0] /* thread name */,
 			cmd_progthread /* thread function */,
 			args /* thread arg */, nargs /* thread arg */,
@@ -156,6 +161,8 @@ cmd_prog(int nargs, char **args)
 		kprintf("Usage: p program [arguments]\n");
 		return EINVAL;
 	}
+
+	kprintf("cmd_prg args  : %s, %s\n", args[0], args[1]);
 
 	/* drop the leading "p" */
 	args++;
@@ -579,6 +586,8 @@ cmd_dispatch(char *cmd)
 	char *context;
 	int i, result;
 
+	kprintf("cmd : %s\n",cmd);
+
 	for (word = strtok_r(cmd, " \t", &context);
 	     word != NULL;
 	     word = strtok_r(NULL, " \t", &context)) {
@@ -587,7 +596,9 @@ cmd_dispatch(char *cmd)
 			kprintf("Command line has too many words\n");
 			return E2BIG;
 		}
+		kprintf("original wrd :%s\n",word);
 		args[nargs++] = word;
+		kprintf("args :%s\n",args[nargs-1]);
 	}
 
 	if (nargs==0) {
