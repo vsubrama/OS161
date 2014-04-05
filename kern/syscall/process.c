@@ -24,6 +24,29 @@
 #include <vfs.h>
 #include <kern/wait.h>
 
+
+/**
+ * Added by Babu:
+ * Pid pool to maintain the free available pids
+ */
+struct pid_pool
+{
+	pid_t pid_avail; // Available pid
+	struct pid_pool *next; // Point to next available pid
+};
+
+
+// Golbal PID counter
+pid_t global_pid_count = 1;
+
+/* Head and tail pointer for query and insert operation from pool which
+ * follows FIFO approach - Added by Babu
+ */
+struct pid_pool *head = NULL;
+struct pid_pool *tail = NULL;
+
+
+
 /**
  * When a process exits it should invoke this method so that
  * this will add the allocated pid to free pool which can be assigned
@@ -199,7 +222,7 @@ sys__exit(int exitstatus)
 	{
 		if(!curthread->t_process->p_exited)
 		{
-			curthread->t_process->p_exitcode = __MKWAIT_EXIT(exitstatus);
+			curthread->t_process->p_exitcode = _MKWAIT_EXIT(exitstatus);
 			curthread->t_process->p_exited = true;
 			/* return if invalid parent*/
 			if(!curthread->t_process->p_pid_parent < 1)
@@ -233,8 +256,8 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 	struct process *child = NULL;
 	int spl = 0;
 	struct process *parent = NULL;
-	struct trapframe child_trapframe = NULL;
-	int retvalfork = 1, i=0;
+	struct trapframe *child_trapframe = NULL;
+	int retvalfork = 1;
 	/**
 	 * Create
 	 */

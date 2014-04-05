@@ -125,7 +125,8 @@ syscall(struct trapframe *tf)
 	    	//err = sys_execv((char *)tf->tf_a0, (char *)tf->tf_a1);
 	    	break;
 	    case SYS__exit:
-	    	err = sys__exit(tf->tf_a0);
+	    	sys__exit(tf->tf_a0);
+	    	err = 0;
 	    	break;
 
 	    case SYS_waitpid:

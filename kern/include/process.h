@@ -8,6 +8,8 @@
 #ifndef PROCESS_H_
 #define PROCESS_H_
 
+struct trapframe;
+
 /*
  * Process table which holds all information about the process
  * such as pid, parent process, threads belongs to that process
@@ -30,27 +32,9 @@ struct process {
 };
 
 
-/**
- * Added by Babu:
- * Pid pool to maintain the free available pids
- */
-struct pid_pool
-{
-	pid_t pid_avail; // Available pid
-	struct pid_pool *next; // Point to next available pid
-};
+/**TODO Process Table change it to 256 to MAX_RUNNING_PROCESS**/
 
-/** Process Table **/
-struct process processtable[MAX_RUNNING_PROCS];
-
-// Golbal PID counter
-pid_t global_pid_count = 1;
-
-/* Head and tail pointer for query and insert operation from pool which
- * follows FIFO approach - Added by Babu
- */
-struct pid_pool *head = NULL;
-struct pid_pool *tail = NULL;
+struct process *processtable[256];
 
 
 /**
@@ -91,7 +75,7 @@ void sys__exit(int exitcode);
 /**
  * wait system call allows the calling process' parent to collect the status of child process
  */
-int sys_waitpid(pid_t *pid, int32_t *exitcode);
+int sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags);
 
 /**
  * fork system call which creates clone of the calling process
