@@ -167,10 +167,10 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 	if(childprocess->p_exited)
 	{
 		/*collect the exitstatus and return*/
-		memcpy(exitcode, &childprocess->p_exitcode, sizeof(int));
-		memcpy(retval, &childprocess->p_pid_self, sizeof(pid_t));
-		//exitcode =  &childprocess->p_exitcode;
-		//retval = &childprocess->p_pid_self;
+		//memcpy(exitcode, &childprocess->p_exitcode, sizeof(int));
+		//memcpy(retval, &childprocess->p_pid_self, sizeof(pid_t));
+		*exitcode =  childprocess->p_exitcode;
+		*retval = childprocess->p_pid_self;
 		process_destroy(childprocess);
 		err = EFAULT;
 	}
@@ -178,10 +178,10 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 	{
 		/*else wait on sem until the thread exits then collect exit status and return*/
 		P(curthread->t_process->p_exitsem);
-		memcpy(exitcode, childprocess->p_exitcode, sizeof(int));
-		memcpy(retval, childprocess->p_pid_self, sizeof(pid_t));
-		//exitcode =  &childprocess->p_exitcode;
-		//retval = &childprocess->p_pid_self;
+		//memcpy(exitcode, childprocess->p_exitcode, sizeof(int));
+		//memcpy(retval, childprocess->p_pid_self, sizeof(pid_t));
+		*exitcode = childprocess->p_exitcode;
+		*retval = childprocess->p_pid_self;
 		process_destroy(childprocess);
 		err = 0;
 	}
