@@ -96,9 +96,9 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	}
 
 	/* Hope we fit. */
+	kprintf("Passed function name %s\n",args[0]);
 	KASSERT(strlen(args[0]) < sizeof(progname));
-
-	strcpy(progname, args[0]);
+	strcpy(progname,args[0]);
 
 	kprintf("progname : %s\n", progname);
 	result = runprogram(progname);
@@ -134,14 +134,16 @@ common_prog(int nargs, char **args)
 		"synchronization-problems kernel.\n");
 #endif
 
-//	char *cargs = "/testbin/sysexittest";
-//args[1] = cargs;
-	//args
+struct thread *fork_Thread;
 	kprintf("before thread fork args  : %s, %s\n", args[0], args[1]);
 	result = thread_fork(args[0] /* thread name */,
 			cmd_progthread /* thread function */,
 			args /* thread arg */, nargs /* thread arg */,
-			NULL);
+			&fork_Thread);
+	//something like this is expected please do --vasanth
+	int s_wait;
+
+	sys_waitpid(NULL, fork_Thread->t_process->p_pid_self,&s_wait,0);
 	if (result) {
 		kprintf("thread_fork failed: %s\n", strerror(result));
 		return result;

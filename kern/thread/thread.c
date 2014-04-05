@@ -163,10 +163,11 @@ thread_create(const char *name)
 
 	thread->t_process->p_pid_self = allocate_pid();
 
-	if(curthread->t_process != NULL) /* curr thread is the parent */
+	if( thread->t_process->p_pid_self > 4) /* curr thread is the parent */
 		thread->t_process->p_pid_parent = curthread->t_process->p_pid_self;
 	else /* -1 to denote that this is the init process*/
 		thread->t_process->p_pid_parent = -1;
+
 
 	thread->t_process->p_exitsem = sem_create("exitsem", 0);
 	thread->t_process->p_exited = false;
@@ -564,10 +565,15 @@ thread_fork(const char *name,
 	for (i = 0; i < OPEN_MAX; i++)
 	{
 		newthread->ft[i] = curthread->ft[i];
+		if ( curthread->ft[i] !=0)
+		{
+		curthread->ft[i]->ref_count++;
 		newthread->ft[i]->ref_count++;
+		}
 	}
 
 	/* Set up the switchframe so entrypoint() gets called */
+
 	switchframe_init(newthread, entrypoint, data1, data2);
 
 	/* Lock the current cpu's run queue and make the new thread runnable */

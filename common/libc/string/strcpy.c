@@ -47,17 +47,18 @@ strcpy(char *dest, const char *src)
 {
 	size_t i;
 
+
 	/*
 	 * Copy characters until we hit the null terminator.
 	 */
 	for (i=0; src[i]; i++) {
 		dest[i] = src[i];
 	}
-
 	/*
 	 * Add null terminator to result.
 	 */
 	dest[i] = 0;
+	//kprintf("Destination string %s\n",dest);
 
 	return dest;
 }
