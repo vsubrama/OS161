@@ -129,7 +129,7 @@ syscall(struct trapframe *tf)
 	    	break;
 
 	    case SYS_waitpid:
-	    	err = sys_waitpid(&retval, (int32_t *)tf->tf_a0);
+	    	err = sys_waitpid(&retval, (pid_t)tf->tf_a0, (int32_t *)tf->tf_a1, (int32_t)tf->tf_a2);
 	    	break;
 
 	    case SYS_getpid:
@@ -142,6 +142,7 @@ syscall(struct trapframe *tf)
 
 
 	    /* Add stuff here */
+	    // File system calls - Vasanth
 	    case SYS_open:
 	    retval = open((userptr_t)tf->tf_a0,
 	    		(int)tf->tf_a1,&err);

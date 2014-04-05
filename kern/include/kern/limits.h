@@ -96,7 +96,11 @@
 /* Max number of iovec structures at once for readv/writev/preadv/pwritev */
 #define __IOV_MAX       1024
 
-/*Maximum length of file name */
+/* Max number of process which can run on os161*/
+#define _MAX_RUNNING_PROCS 256
 
+
+/*Maximum number of file table entry per process */
+#define _MAX_FILE 10
 
 #endif /* _KERN_LIMITS_H_ */

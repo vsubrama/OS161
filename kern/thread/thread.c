@@ -133,7 +133,6 @@ thread_create(const char *name)
 	 * Initializing parent process thread
 	 */
 	thread->t_process = kmalloc(sizeof(struct process));
-
 	if(thread->t_process == NULL)
 		panic("Process creation failed during thread_create");
 	thread->t_name = kstrdup(name);
@@ -163,10 +162,20 @@ thread_create(const char *name)
 	thread->t_cwd = NULL;
 
 	thread->t_process->p_pid_self = allocate_pid();
-	thread->t_process->p_parent_process = curthread->t_process; /* -1 To denote that the process is not created by fork() ??*/
+
+	if(curthread->t_process != NULL) /* curr thread is the parent */
+		thread->t_process->p_pid_parent = curthread->t_process->p_pid_self;
+	else /* -1 to denote that this is the init process*/
+		thread->t_process->p_pid_parent = -1;
+
 	thread->t_process->p_exitsem = sem_create("exitsem", 0);
+	thread->t_process->p_exited = false;
 	thread->t_process->p_thread = thread;
 	DEBUG(DB_THREADS, "Thread created %s", thread->t_name);
+
+	// Adding entry to process table
+	processtable[(int)thread->t_process->p_pid_self] = thread->t_process;
+
 	/* If you add to struct thread, be sure to initialize here */
 	/*File descriptor*/
 		int i;
@@ -513,6 +522,7 @@ thread_fork(const char *name,
 	    struct thread **ret)
 {
 	struct thread *newthread;
+	int i=0;
 	newthread = thread_create(name);
 	if (newthread == NULL) {
 		return ENOMEM;
@@ -550,6 +560,12 @@ thread_fork(const char *name,
 	newthread->t_iplhigh_count++;
 
 	//Might have to add the copy of the file table --vasanth
+	// Yes - Copying file table as part of fork - Babu
+	for (i = 0; i < OPEN_MAX; i++)
+	{
+		newthread->ft[i] = curthread->ft[i];
+		newthread->ft[i]->ref_count++;
+	}
 
 	/* Set up the switchframe so entrypoint() gets called */
 	switchframe_init(newthread, entrypoint, data1, data2);

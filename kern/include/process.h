@@ -15,40 +15,42 @@
  */
 struct process {
 
-	char *p_name; /* process name */
-
 	pid_t p_pid_self;  /* process id of the process */
 
 	struct thread *p_thread;
 
-	struct process *p_parent_process;
+	pid_t p_pid_parent;
 
-	struct process *p_child_process;
-
-	struct trapframe *p_trapframe;
-
-	struct fTable *p_filetable;
-
-	/**
-	 * Variables for process exit
-	 */
+	// Variables for process exit
 	bool p_exited;
 
 	int p_exitcode;
 
 	struct semaphore *p_exitsem;
-
 };
 
 
-
 /**
- * Get pid of the process which is passed as an argument
- *
- * Returns pid_t PID of the process passed as arg
+ * Added by Babu:
+ * Pid pool to maintain the free available pids
  */
-//pid_t getpid(void);
-//pid_t getppid(void);
+struct pid_pool
+{
+	pid_t pid_avail; // Available pid
+	struct pid_pool *next; // Point to next available pid
+};
+
+/** Process Table **/
+struct process processtable[MAX_RUNNING_PROCS];
+
+// Golbal PID counter
+pid_t global_pid_count = 1;
+
+/* Head and tail pointer for query and insert operation from pool which
+ * follows FIFO approach - Added by Babu
+ */
+struct pid_pool *head = NULL;
+struct pid_pool *tail = NULL;
 
 
 /**
@@ -70,10 +72,6 @@ pid_t allocate_pid(void);
  */
 void process_destroy(struct process *process);
 
-/**
- * Pid pool which contains free available pid's
- */
-struct pid_pool_t;
 
 /**
  * getpid system call which fetches the pid of the calling process
@@ -88,7 +86,7 @@ pid_t sys_getppid(int32_t *retval);
 /**
  * exit system call which allows the calling process to exit
  */
-int sys__exit(int exitcode);
+void sys__exit(int exitcode);
 
 /**
  * wait system call allows the calling process' parent to collect the status of child process

@@ -22,20 +22,7 @@
 #include <kern/fcntl.h>
 #include <copyinout.h>
 #include <vfs.h>
-
-struct pid_pool
-{
-	pid_t pid_avail; // Available pid
-	struct pid_pool *next; // Point to next available pid
-};
-
-pid_t global_pid_count = 1;
-
-/* Head and tail pointer for query and insert operation from pool which
- * follows FIFO approach - Added by Babu
- */
-struct pid_pool *head;
-struct pid_pool *tail;
+#include <kern/wait.h>
 
 /**
  * When a process exits it should invoke this method so that
@@ -80,7 +67,10 @@ allocate_pid()
 	struct pid_pool *temp;
 	if(head == NULL)
 	{
-		pid_alloc = global_pid_count++;
+		if(global_pid_count < MAX_RUNNING_PROCS)
+			pid_alloc = global_pid_count++;
+		else
+			panic("Maximum number of process reached");
 	}
 	else
 	{
@@ -108,10 +98,8 @@ process_destroy(struct process *process)
    //int retval = -1;
 	/* Adding pid to available pool so that it can be allocated to other processes	 */
 	add_pid_to_pool(process->p_pid_self);
-	/*TODO : Commenting as of now. Implement free of filetable and trapframe
-	kfree(thread->t_parent_process->p_filetable);
-	kfree(thread->t_parent_process->p_trapframe); */
 	sem_destroy(process->p_exitsem);
+	processtable[(int)process->p_pid_self] = NULL;
 	kfree(process);
 	return;
 }
@@ -127,7 +115,7 @@ sys_getpid(int32_t *retval)
 	{
 		if(curthread->t_process != NULL)
 		{
-			retval = &curthread->t_process->p_pid_self;
+			memcpy(retval, &curthread->t_process->p_pid_self, sizeof(pid_t));
 			return 0;
 		}
 	}
@@ -145,11 +133,8 @@ sys_getppid(int32_t *retval)
 	{
 		if(curthread->t_process != NULL)
 		{
-			if(curthread->t_process->p_parent_process != NULL)
-			{
-				retval = &curthread->t_process->p_parent_process->p_pid_self;
-				return 0;
-			}
+			retval = &curthread->t_process->p_pid_parent;
+			return 0;
 		}
 	}
 	return 1;
@@ -161,49 +146,74 @@ sys_getppid(int32_t *retval)
  * process which are not collected the return status remain as 'zombies'
  */
 int
-sys_waitpid(pid_t *pid, int32_t *exitcode)
+sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 {
-	struct process *childprocess = curthread->t_process->p_child_process;
-	int retval = -1;
+	struct process *childprocess = processtable[(int)pid];
+	int err = -1;
+
+	/*Argument checking*/
+	// if child process does not exist
+	if(childprocess == NULL)
+		return EINVAL;
+
+	// if exitcode alignment is not proper ? DOUBT
+	if(sizeof(exitcode) != sizeof(int32_t))
+		return EFAULT;
+
+	// if flags are not proper
+	if(flags != WNOHANG || flags != WUNTRACED)
+		return EINVAL;
+
 	if(childprocess->p_exited)
 	{
 		/*collect the exitstatus and return*/
-		exitcode = &childprocess->p_exitcode;
-		pid = &childprocess->p_pid_self;
+		memcpy(exitcode, &childprocess->p_exitcode, sizeof(int));
+		memcpy(retval, &childprocess->p_pid_self, sizeof(pid_t));
+		//exitcode =  &childprocess->p_exitcode;
+		//retval = &childprocess->p_pid_self;
 		process_destroy(childprocess);
-		retval = 0;
+		err = EFAULT;
 	}
 	else
 	{
 		/*else wait on sem until the thread exits then collect exit status and return*/
 		P(curthread->t_process->p_exitsem);
-		exitcode = &childprocess->p_exitcode;
-		pid = &childprocess->p_pid_self;
+		memcpy(exitcode, childprocess->p_exitcode, sizeof(int));
+		memcpy(retval, childprocess->p_pid_self, sizeof(pid_t));
+		//exitcode =  &childprocess->p_exitcode;
+		//retval = &childprocess->p_pid_self;
 		process_destroy(childprocess);
-		retval = 0;
+		err = 0;
 	}
-	return retval;
+	return err;
 }
 
 /**
  * Added by Babu : 04/02/2014
  * sysexit will stop the current thread execution and destroy it immediately
  */
-int
+void
 sys__exit(int exitstatus)
 {
-	/*TODO: close file handle? */
-	int retval = -1;
-	if(!curthread->t_process->p_exited && !curthread->t_process->p_parent_process->p_exited)
+	if(curthread->t_process != NULL)
 	{
-		curthread->t_process->p_exitcode = exitstatus;
-		/* Free thread structure and destroy all the thread related book keeping stuffs*/
-		thread_exit();
-		//thread_destroy();
-		V(curthread->t_process->p_exitsem);
-		retval = 0;
+		if(!curthread->t_process->p_exited)
+		{
+			curthread->t_process->p_exitcode = __MKWAIT_EXIT(exitstatus);
+			curthread->t_process->p_exited = true;
+			/* return if invalid parent*/
+			if(!curthread->t_process->p_pid_parent < 1)
+				return;
+			/* return if parent already exited*/
+			if(processtable[(int)curthread->t_process->p_pid_parent]->p_exited)
+				return;
+			V(curthread->t_process->p_exitsem);
+			/* Free thread structure and destroy all the thread related book keeping stuffs*/
+			thread_exit();
+		}
 	}
-	return retval;
+
+	return;
 }
 
 /**
@@ -223,7 +233,8 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 	struct process *child = NULL;
 	int spl = 0;
 	struct process *parent = NULL;
-	int retvalfork = 1;
+	struct trapframe child_trapframe = NULL;
+	int retvalfork = 1, i=0;
 	/**
 	 * Create
 	 */
@@ -233,7 +244,7 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 		panic("parent process retrieve operation failed");
 
 	parent->p_thread = curthread;
-	parent->p_trapframe = tf;
+	//parent_trapframe = tf;
 
 	/*
 	 * Child process creation
@@ -242,18 +253,23 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 	if(child == NULL)
 		panic("Child process creation failed");
 
-	child->p_parent_process->p_pid_self = parent->p_pid_self;
+	child->p_pid_parent = parent->p_pid_self;
 	child->p_pid_self = allocate_pid();
-	child->p_trapframe = kmalloc(sizeof(struct trapframe));
+	child_trapframe = kmalloc(sizeof(struct trapframe));
 
 	/* create a copy of trapframe using memcpy */
-	memcpy(child->p_trapframe, tf, sizeof(tf));
+	memcpy(child_trapframe, tf, sizeof(tf));
 
 	/* Addres space and file table cloning from parent */
 	as_copy(parent->p_thread->t_addrspace, &child_addrspce);
 
-	/* TODO :file table?*/
-	child->p_filetable =  parent->p_filetable;
+	// File table moved to Thread structure
+	/* TODO :file table as array now change it to ptr if possible*/
+	/*for (i = 0; i < MAX_FILE; i++) {
+		child->p_filetable[i] =  parent->p_filetable;
+		child->p_filetable[i].ref_count++;
+
+	}*/
 
 	/* disable interrupts*/
 	spl  = splhigh();
