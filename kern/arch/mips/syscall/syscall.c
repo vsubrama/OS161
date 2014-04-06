@@ -103,7 +103,7 @@ syscall(struct trapframe *tf)
 	 */
 
 	retval = 0;
-
+	//kprintf("syscall number : %d\n",callno);
 	switch (callno) {
 	    case SYS_reboot:
 		err = sys_reboot(tf->tf_a0);
@@ -124,8 +124,9 @@ syscall(struct trapframe *tf)
 	    case SYS_execv:
 	    	//err = sys_execv((char *)tf->tf_a0, (char *)tf->tf_a1);
 	    	break;
+
 	    case SYS__exit:
-	    	sys__exit(tf->tf_a0);
+	    	sys__exit((int)tf->tf_a0);
 	    	err = 0;
 	    	break;
 
@@ -145,50 +146,50 @@ syscall(struct trapframe *tf)
 	    /* Add stuff here */
 	    // File system calls - Vasanth
 	    case SYS_open:
-	    retval = open((userptr_t)tf->tf_a0,
-	    		(int)tf->tf_a1,&err);
+	    	retval = open((userptr_t)tf->tf_a0,
+	    	(int)tf->tf_a1,&err);
 	    break;
 
    	    case SYS_close:
-   	    err = close(tf->tf_a0);
-        break;
+			err = close(tf->tf_a0);
+			break;
 
         case SYS_read:
-        retval = read(tf->tf_a0,(userptr_t)tf->tf_a1,tf->tf_a2,&err);
-        break;
+        	retval = read(tf->tf_a0,(userptr_t)tf->tf_a1,tf->tf_a2,&err);
+        	break;
 
         case SYS_write:
-        retval = write(tf->tf_a0,(userptr_t)tf->tf_a1,
-        		tf->tf_a2,&err);
-        break;
+        	retval = write(tf->tf_a0,(userptr_t)tf->tf_a1, tf->tf_a2,&err);
+        	break;
 
         case SYS_dup2:
-        err = dup2(tf->tf_a0,tf->tf_a1);
-        break;
+        	err = dup2(tf->tf_a0,tf->tf_a1);
+        	break;
 
         case SYS_lseek:
-        join32to64(tf->tf_a2,tf->tf_a3,&ar2);
-        //kprintf("Correct lseek called\n");
-           if ((err = copyin((const_userptr_t)(tf->tf_sp+16), &whence, sizeof(whence))) != 0) {
-               break;
-           }
-        ret = lseek((int)tf->tf_a0,ar2,whence,&err);
-        //kprintf("ret value %llu\n",ret);
-        split64to32(ret,(uint32_t *)&retval,(uint32_t *)&retval2);
-        //kprintf("Retval %d,%d\n",retval,retval2);
-        if (!err)
-        {
-        tf->tf_v1 = retval2;
-        }
-        break;
+			join32to64(tf->tf_a2,tf->tf_a3,&ar2);
+			//kprintf("Correct lseek called\n");
+			if ((err = copyin((const_userptr_t)(tf->tf_sp+16), &whence, sizeof(whence))) != 0)
+			{
+				   break;
+			}
+			ret = lseek((int)tf->tf_a0,ar2,whence,&err);
+			//kprintf("ret value %llu\n",ret);
+			split64to32(ret,(uint32_t *)&retval,(uint32_t *)&retval2);
+			//kprintf("Retval %d,%d\n",retval,retval2);
+			if (!err)
+			{
+				tf->tf_v1 = retval2;
+			}
+			break;
 
         case SYS_chdir:
-        err = chdir((const_userptr_t)tf->tf_a0);
-        break;
+        	err = chdir((const_userptr_t)tf->tf_a0);
+        	break;
 
         case SYS___getcwd:
-        err = __getcwd((userptr_t)tf->tf_a0,(size_t)tf->tf_a1);
-        break;
+			err = __getcwd((userptr_t)tf->tf_a0,(size_t)tf->tf_a1);
+			break;
 
 	    default:
 		kprintf("Unknown syscall %d\n", callno);

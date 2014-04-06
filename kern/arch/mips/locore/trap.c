@@ -394,7 +394,9 @@ mips_usermode(struct trapframe *tf)
 	 * either another thread's stack or in the kernel heap.
 	 * (Exercise: why?)
 	 */
+	//kprintf("before SAME STACK");
 	KASSERT(SAME_STACK(cpustacks[curcpu->c_number]-1, (vaddr_t)tf));
+	//kprintf("after SAME STACK");
 
 	/*
 	 * This actually does it. See exception.S.

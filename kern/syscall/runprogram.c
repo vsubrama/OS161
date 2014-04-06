@@ -110,6 +110,7 @@ runprogram(char *progname)
 	kfree(con2);
 	//kprintf("IO fd's initialized\n");
 	/* Open the file. */
+	kprintf("opening file : %s",progname);
 	result = vfs_open(progname, O_RDONLY, 0, &v);
 	if (result) {
 		return result;

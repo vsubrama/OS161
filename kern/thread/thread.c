@@ -169,7 +169,7 @@ thread_create(const char *name)
 		thread->t_process->p_pid_parent = -1;
 
 
-	thread->t_process->p_exitsem = sem_create("exitsem", 0);
+	thread->t_process->p_exitsem = sem_create("p_exitsem", 0);
 	thread->t_process->p_exited = false;
 	thread->t_process->p_thread = thread;
 	DEBUG(DB_THREADS, "Thread created %s", thread->t_name);
@@ -567,8 +567,9 @@ thread_fork(const char *name,
 		newthread->ft[i] = curthread->ft[i];
 		if ( curthread->ft[i] !=0)
 		{
-		curthread->ft[i]->ref_count++;
-		newthread->ft[i]->ref_count++;
+			//curthread->ft[i]->ref_count++; // Not required as ft is a pointer and both
+										 	 // parent and child point to the same ft
+			newthread->ft[i]->ref_count++;
 		}
 	}
 
@@ -851,8 +852,23 @@ void
 thread_exit(void)
 {
 	struct thread *cur;
+	int i = 0;
 
 	cur = curthread;
+
+	/**
+	 * TODO
+	 * Added by Babu :
+	 * Closing file handles which thread possess
+	 */
+	for (i = 0; i < OPEN_MAX; i++)
+	{
+		if (curthread->ft[i] !=  NULL)
+		{
+			// close file descriptor. Ask vasanth
+		}
+	}
+
 
 	/* VFS fields */
 	if (cur->t_cwd) {
@@ -878,7 +894,17 @@ thread_exit(void)
 	thread_checkstack(cur);
 
 	/* Interrupts off on this processor */
-        splhigh();
+    splhigh();
+
+    /* Added by Babu :
+     * return if invalid parent and return if parent already exited
+     * */
+	if(curthread->t_process->p_pid_parent > 0 && processtable[(int)curthread->t_process->p_pid_parent] != NULL)
+	{
+		kprintf("parent might be waiting...");
+		V(curthread->t_process->p_exitsem);
+	}
+
 	thread_switch(S_ZOMBIE, NULL);
 	panic("The zombie walks!\n");
 }

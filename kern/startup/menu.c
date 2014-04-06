@@ -101,7 +101,7 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	strcpy(progname,args[0]);
 
 	kprintf("progname : %s\n", progname);
-	result = runprogram(progname);
+	result = runprogram(args[0]);
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
 			strerror(result));
@@ -134,16 +134,32 @@ common_prog(int nargs, char **args)
 		"synchronization-problems kernel.\n");
 #endif
 
-struct thread *fork_Thread;
+	struct thread *newthread = NULL;
+	pid_t retpid ;
+	//struct thread *parentthread = curthread;
+	int status = 0 , err = 0;
 	kprintf("before thread fork args  : %s, %s\n", args[0], args[1]);
 	result = thread_fork(args[0] /* thread name */,
 			cmd_progthread /* thread function */,
 			args /* thread arg */, nargs /* thread arg */,
-			&fork_Thread);
-	//something like this is expected please do --vasanth
-	int s_wait;
+			&newthread);
 
-	sys_waitpid(NULL, fork_Thread->t_process->p_pid_self,&s_wait,0);
+	if(newthread != NULL)
+	{
+		// Parent wait
+
+		//err = waitpid(newthread->t_process->p_pid_self, &status, 1);
+		err = sys_waitpid(&retpid, newthread->t_process->p_pid_self, &status, 1);
+		if(err != 0)
+		{
+			kprintf("wait not success : %d\n", err);
+		}
+	}
+	// child wait
+	//something like this is expected please do --vasanth
+	//int s_wait;
+
+	//sys_waitpid(NULL, fork_Thread->t_process->p_pid_self,&s_wait,0);
 	if (result) {
 		kprintf("thread_fork failed: %s\n", strerror(result));
 		return result;
