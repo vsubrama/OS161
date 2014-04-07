@@ -318,15 +318,15 @@ gostraight(void *p, unsigned long direction)
 	unsigned long destQuadrant2 = (direction + 3) % 4;
 	kprintf("go straight....\n");
 
-	/*lock_acquire(getlock(destQuadrant1));
-	lock_acquire(getlock(destQuadrant2));*/
+	lock_acquire(getlock(destQuadrant1));
+	lock_acquire(getlock(destQuadrant2));
 
-	inQuadrantSync(destQuadrant1);
-	inQuadrantSync(destQuadrant2);
+	inQuadrant(destQuadrant1);
+	inQuadrant(destQuadrant2);
 	leaveIntersection();
 
-	/*lock_release(getlock(destQuadrant2));
-	lock_release(getlock(destQuadrant1));*/
+	lock_release(getlock(destQuadrant2));
+	lock_release(getlock(destQuadrant1));
 
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // stoplight driver can return to the menu cleanly.
@@ -343,18 +343,18 @@ turnleft(void *p, unsigned long direction)
 	unsigned long destQuadrant2 = (direction + 3) % 4;
 	unsigned long destQuadrant3 = (direction + 2) % 4;
 
-	/*lock_acquire(getlock(destQuadrant1));
+	lock_acquire(getlock(destQuadrant1));
 	lock_acquire(getlock(destQuadrant2));
-	lock_acquire(getlock(destQuadrant3));*/
+	lock_acquire(getlock(destQuadrant3));
 
-	inQuadrantSync(destQuadrant1);
-	inQuadrantSync(destQuadrant2);
-	inQuadrantSync(destQuadrant3);
+	inQuadrant(destQuadrant1);
+	inQuadrant(destQuadrant2);
+	inQuadrant(destQuadrant3);
 	leaveIntersection();
 
-	/*lock_release(getlock(destQuadrant3));
+	lock_release(getlock(destQuadrant3));
 	lock_release(getlock(destQuadrant2));
-	lock_release(getlock(destQuadrant1));*/
+	lock_release(getlock(destQuadrant1));
   
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // stoplight driver can return to the menu cleanly.
@@ -369,12 +369,12 @@ turnright(void *p, unsigned long direction)
 	struct semaphore * stoplightMenuSemaphore = (struct semaphore *)p;
 	unsigned long destQuadrant1 = direction;
 
-	//lock_acquire(getlock(destQuadrant1));
+	lock_acquire(getlock(destQuadrant1));
 
-	inQuadrantSync(destQuadrant1);
+	inQuadrant(destQuadrant1);
 	leaveIntersection();
 
-	//lock_release(getlock(destQuadrant1));
+	lock_release(getlock(destQuadrant1));
 
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // stoplight driver can return to the menu cleanly.

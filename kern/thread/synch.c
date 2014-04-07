@@ -197,16 +197,19 @@ lock_acquire(struct lock *lock)
 {
 		//added by vasanth
 		KASSERT(lock != NULL);
-		spinlock_acquire(&lock->spn_lock);
-		while (lock->lock_owner!=NULL)
+		if(!lock_do_i_hold(lock))
 		{
-			wchan_lock(lock->lock_wchan);
-			spinlock_release(&lock->spn_lock);
-			wchan_sleep(lock->lock_wchan);
 			spinlock_acquire(&lock->spn_lock);
+			while (lock->lock_owner!=NULL)
+			{
+				wchan_lock(lock->lock_wchan);
+				spinlock_release(&lock->spn_lock);
+				wchan_sleep(lock->lock_wchan);
+				spinlock_acquire(&lock->spn_lock);
+			}
+			lock->lock_owner=curthread;
+			spinlock_release(&lock->spn_lock);
 		}
-		lock->lock_owner=curthread;
-		spinlock_release(&lock->spn_lock);
         // Write this
 
        // (void)lock;  // suppress warning until code gets written
@@ -234,7 +237,7 @@ bool
 lock_do_i_hold(struct lock *lock)
 {
         // Write this
-	bool status;
+		bool status;
 		spinlock_acquire(&lock->spn_lock);
 		if (lock->lock_owner==curthread)
 		{
