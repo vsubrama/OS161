@@ -62,6 +62,8 @@ struct whalemating{
 	struct wchan *match_wchan;
 	volatile int match_found;
 	struct lock *lock;
+	volatile int match_male;
+	volatile int match_female;
 };
 struct whalemating *whale_mating;
 void whalemating_init() {
@@ -116,6 +118,9 @@ void whalemating_init() {
 	whale_mating->num_female_whale = 0;
 	whale_mating->num_matchmaker_whale = 0;
 	whale_mating->match_found=0;
+	whale_mating->match_male=0;
+	whale_mating->match_female=0;
+
 
   return;
 }
@@ -139,7 +144,7 @@ male(void *p, unsigned long which)
 	struct semaphore * whalematingMenuSemaphore = (struct semaphore *)p;
   (void)which;
   
-  lock_acquire(whale_mating->lock);
+ lock_acquire(whale_mating->lock);
  male_start();
 	// Implement this function
 
@@ -154,14 +159,11 @@ male(void *p, unsigned long which)
  wchan_wakeall(whale_mating->match_wchan);
  while(!(whale_mating->match_found==1))
  {
-	 wchan_lock(whale_mating->match_wchan);
-	 lock_release(whale_mating->lock);
-	 wchan_sleep(whale_mating->match_wchan);
-	 lock_acquire(whale_mating->lock);
+	 wchan_lock(whale_mating->match_wchan);lock_release(whale_mating->lock);wchan_sleep(whale_mating->match_wchan);lock_acquire(whale_mating->lock);
  }
- lock_release(whale_mating->lock);
+ whale_mating->match_male=1;
  male_end();
-
+ lock_release(whale_mating->lock);
 
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // whalemating driver can return to the menu cleanly.
@@ -182,24 +184,17 @@ female(void *p, unsigned long which)
 
    while(whale_mating->num_female_whale>=1)
    {
-     wchan_lock(whale_mating->female_wchan);
-     lock_release(whale_mating->lock);
-     //kprintf("whale_mating->num_female_whale>=1\n");
-     wchan_sleep(whale_mating->female_wchan);
-     lock_acquire(whale_mating->lock);
+     wchan_lock(whale_mating->female_wchan);lock_release(whale_mating->lock);wchan_sleep(whale_mating->female_wchan);lock_acquire(whale_mating->lock);
    }
    whale_mating->num_female_whale++;
    wchan_wakeall(whale_mating->match_wchan);
    while(!(whale_mating->match_found==1))
    {
-  	 wchan_lock(whale_mating->match_wchan);
-  	 lock_release(whale_mating->lock);
-  	 wchan_sleep(whale_mating->match_wchan);
-  	 lock_acquire(whale_mating->lock);
+  	 wchan_lock(whale_mating->match_wchan);lock_release(whale_mating->lock);wchan_sleep(whale_mating->match_wchan);lock_acquire(whale_mating->lock);
    }
-   lock_release(whale_mating->lock);
+  whale_mating->match_female=1;
   female_end();
-
+  lock_release(whale_mating->lock);
 
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // whalemating driver can return to the menu cleanly.
@@ -215,46 +210,37 @@ matchmaker(void *p, unsigned long which)
   (void)which;
   lock_acquire(whale_mating->lock);
   matchmaker_start();
-  
-  while(whale_mating->num_matchmaker_whale>1)
+  while(whale_mating->num_matchmaker_whale>=1)
   {
-     wchan_lock(whale_mating->matchmaker_wchan);
-     lock_release(whale_mating->lock);
-     wchan_sleep(whale_mating->matchmaker_wchan);
-     lock_acquire(whale_mating->lock);
+     wchan_lock(whale_mating->matchmaker_wchan);lock_release(whale_mating->lock);wchan_sleep(whale_mating->matchmaker_wchan);lock_acquire(whale_mating->lock);
   }
   whale_mating->num_matchmaker_whale++;
   wchan_wakeall(whale_mating->match_wchan);
   while((whale_mating->num_male_whale == 0) || (whale_mating->num_female_whale == 0))
   {
-	  wchan_lock(whale_mating->match_wchan);
-	  lock_release(whale_mating->lock);
-	  wchan_sleep(whale_mating->match_wchan);
-	  lock_acquire(whale_mating->lock);
+	  wchan_lock(whale_mating->match_wchan);lock_release(whale_mating->lock);wchan_sleep(whale_mating->match_wchan);lock_acquire(whale_mating->lock);
   }
   whale_mating->match_found=1;
   wchan_wakeall(whale_mating->match_wchan);
+  while(whale_mating->match_male!=1 || whale_mating->match_female!=1)
+  {
   lock_release(whale_mating->lock);
   lock_acquire(whale_mating->lock);
+  }
+  whale_mating->match_male=0;
+  whale_mating->match_female=0;
   whale_mating->num_male_whale--;
- // kprintf("Male Whale %d\n",whale_mating->num_male_whale);
-  lock_release(whale_mating->lock);
-  lock_acquire(whale_mating->lock);
   whale_mating->num_female_whale--;
-  lock_release(whale_mating->lock);
-    lock_acquire(whale_mating->lock);
-  //kprintf("feMale Whale %d\n",whale_mating->num_female_whale);
   whale_mating->num_matchmaker_whale--;
- // kprintf("num_matchmaker_whale Whale %d\n",whale_mating->num_matchmaker_whale);
-  lock_release(whale_mating->lock);
-    lock_acquire(whale_mating->lock);
-  whale_mating->match_found=0;
+
   wchan_wakeall(whale_mating->male_wchan);
   wchan_wakeall(whale_mating->female_wchan);
   wchan_wakeall(whale_mating->matchmaker_wchan);
-  lock_release(whale_mating->lock);
+
 	// Implement this function
+  whale_mating->match_found=0;
   matchmaker_end();
+  lock_release(whale_mating->lock);
 
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // whalemating driver can return to the menu cleanly.
@@ -408,7 +394,6 @@ inQuadrantSync(unsigned long destQuadrant)
 	{
 		lock_acquire(lockquad);
 		inQuadrant(destQuadrant);
-		kprintf("Releasing lock 0\n");
 		lock_release(lockquad);
 	}
 	return;
