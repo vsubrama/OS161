@@ -139,10 +139,11 @@ male(void *p, unsigned long which)
 	struct semaphore * whalematingMenuSemaphore = (struct semaphore *)p;
   (void)which;
   
+  lock_acquire(whale_mating->lock);
  male_start();
 	// Implement this function
- lock_acquire(whale_mating->lock);
- while(whale_mating->num_male_whale>1)
+
+ while(whale_mating->num_male_whale>=1)
  {
    wchan_lock(whale_mating->male_wchan);
    lock_release(whale_mating->lock);
@@ -155,7 +156,6 @@ male(void *p, unsigned long which)
  {
 	 wchan_lock(whale_mating->match_wchan);
 	 lock_release(whale_mating->lock);
-	 //kprintf("male problem here\n");
 	 wchan_sleep(whale_mating->match_wchan);
 	 lock_acquire(whale_mating->lock);
  }
@@ -175,14 +175,16 @@ female(void *p, unsigned long which)
 	struct semaphore * whalematingMenuSemaphore = (struct semaphore *)p;
   (void)which;
   
+  lock_acquire(whale_mating->lock);
   female_start();
 
 	// Implement this function
-  lock_acquire(whale_mating->lock);
-   while(whale_mating->num_female_whale>1)
+
+   while(whale_mating->num_female_whale>=1)
    {
      wchan_lock(whale_mating->female_wchan);
      lock_release(whale_mating->lock);
+     //kprintf("whale_mating->num_female_whale>=1\n");
      wchan_sleep(whale_mating->female_wchan);
      lock_acquire(whale_mating->lock);
    }
@@ -192,7 +194,6 @@ female(void *p, unsigned long which)
    {
   	 wchan_lock(whale_mating->match_wchan);
   	 lock_release(whale_mating->lock);
-  	 //kprintf("Female problem here\n");
   	 wchan_sleep(whale_mating->match_wchan);
   	 lock_acquire(whale_mating->lock);
    }
@@ -212,9 +213,9 @@ matchmaker(void *p, unsigned long which)
 {
 	struct semaphore * whalematingMenuSemaphore = (struct semaphore *)p;
   (void)which;
-  
-  matchmaker_start();
   lock_acquire(whale_mating->lock);
+  matchmaker_start();
+  
   while(whale_mating->num_matchmaker_whale>1)
   {
      wchan_lock(whale_mating->matchmaker_wchan);
