@@ -313,7 +313,7 @@ gostraight(void *p, unsigned long direction)
 	struct semaphore * stoplightMenuSemaphore = (struct semaphore *)p;
 	unsigned long destQuadrant1 = direction;
 	unsigned long destQuadrant2 = (direction + 3) % 4;
-	//kprintf("go straight....\n");
+	kprintf("go straight....\n");
 
 	inQuadrantSync(destQuadrant1);
 	inQuadrantSync(destQuadrant2);
@@ -328,7 +328,7 @@ gostraight(void *p, unsigned long direction)
 void
 turnleft(void *p, unsigned long direction)
 {
-	//kprintf("turn left....\n");
+	kprintf("turn left....\n");
 	struct semaphore * stoplightMenuSemaphore = (struct semaphore *)p;
 	unsigned long destQuadrant1 = direction;
 	unsigned long destQuadrant2 = (direction + 3) % 4;
@@ -348,7 +348,7 @@ turnleft(void *p, unsigned long direction)
 void
 turnright(void *p, unsigned long direction)
 {
-	//kprintf("turn right....\n");
+	kprintf("turn right....\n");
 	struct semaphore * stoplightMenuSemaphore = (struct semaphore *)p;
 	unsigned long destQuadrant1 = direction;
 

@@ -148,7 +148,7 @@ inline void leaveIntersection() {
 	kprintf("%s left the intersection\n", curthread->t_name);
 }
 
-#define NCARS 99
+#define NCARS 10
 
 struct semaphore * stoplightMenuSemaphore;
 
