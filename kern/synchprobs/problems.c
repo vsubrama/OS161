@@ -47,12 +47,15 @@
 // 13 Feb 2012 : GWA : Adding at the suggestion of Isaac Elbaz. These
 // functions will allow you to do local initialization. They are called at
 // the top of the corresponding driver code.
-	struct lock *lockquad0;
-	struct lock *lockquad1;
-	struct lock *lockquad2;
-	struct lock *lockquad3;
-	void inQuadrantSync(unsigned long);
-struct whalemating{
+struct lock *lockquad0;
+struct lock *lockquad1;
+struct lock *lockquad2;
+struct lock *lockquad3;
+void inQuadrantSync(unsigned long);
+struct lock *getlock(int destQuadrant);
+
+struct whalemating
+{
 	volatile int num_male_whale;
 	volatile int num_female_whale;
 	volatile int num_matchmaker_whale;
@@ -315,9 +318,15 @@ gostraight(void *p, unsigned long direction)
 	unsigned long destQuadrant2 = (direction + 3) % 4;
 	kprintf("go straight....\n");
 
+	/*lock_acquire(getlock(destQuadrant1));
+	lock_acquire(getlock(destQuadrant2));*/
+
 	inQuadrantSync(destQuadrant1);
 	inQuadrantSync(destQuadrant2);
 	leaveIntersection();
+
+	/*lock_release(getlock(destQuadrant2));
+	lock_release(getlock(destQuadrant1));*/
 
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // stoplight driver can return to the menu cleanly.
@@ -334,10 +343,18 @@ turnleft(void *p, unsigned long direction)
 	unsigned long destQuadrant2 = (direction + 3) % 4;
 	unsigned long destQuadrant3 = (direction + 2) % 4;
 
+	/*lock_acquire(getlock(destQuadrant1));
+	lock_acquire(getlock(destQuadrant2));
+	lock_acquire(getlock(destQuadrant3));*/
+
 	inQuadrantSync(destQuadrant1);
 	inQuadrantSync(destQuadrant2);
 	inQuadrantSync(destQuadrant3);
 	leaveIntersection();
+
+	/*lock_release(getlock(destQuadrant3));
+	lock_release(getlock(destQuadrant2));
+	lock_release(getlock(destQuadrant1));*/
   
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // stoplight driver can return to the menu cleanly.
@@ -352,8 +369,12 @@ turnright(void *p, unsigned long direction)
 	struct semaphore * stoplightMenuSemaphore = (struct semaphore *)p;
 	unsigned long destQuadrant1 = direction;
 
+	//lock_acquire(getlock(destQuadrant1));
+
 	inQuadrantSync(destQuadrant1);
 	leaveIntersection();
+
+	//lock_release(getlock(destQuadrant1));
 
   // 08 Feb 2012 : GWA : Please do not change this code. This is so that your
   // stoplight driver can return to the menu cleanly.
@@ -390,11 +411,45 @@ inQuadrantSync(unsigned long destQuadrant)
 	}
 
 	/* If the lock is not held before, then acquire it */
-	if(lock_do_i_hold(lockquad))
+	if(!lock_do_i_hold(lockquad))
 	{
 		lock_acquire(lockquad);
 		inQuadrant(destQuadrant);
 		lock_release(lockquad);
 	}
 	return;
+}
+
+struct lock *
+getlock(int destQuadrant)
+{
+	struct lock *lockquad;
+	switch (destQuadrant)
+	{
+		case 0:
+			lockquad = lockquad0;
+			break;
+		case 1:
+			lockquad = lockquad1;
+			break;
+		case 2:
+			lockquad = lockquad2;
+			break;
+		case 3:
+			lockquad = lockquad3;
+			break;
+		default:
+			panic("unknown direction");
+			break;
+	}
+
+	/* If the lock is not held before, then acquire it */
+	/*if(lock_do_i_hold(lockquad))
+	{
+		lock_acquire(lockquad);
+		inQuadrant(destQuadrant);
+		lock_release(lockquad);
+	}*/
+	return lockquad;
+
 }
