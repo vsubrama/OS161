@@ -149,7 +149,7 @@ common_prog(int nargs, char **args)
 		// Parent wait
 
 		//err = waitpid(newthread->t_process->p_pid_self, &status, 1);
-		err = sys_waitpid(&retpid, newthread->t_process->p_pid_self, &status, 2);
+		err = sys_waitpid(&retpid, newthread->t_process->p_pid_self, &status, 0);
 		if(err != 0)
 		{
 			kprintf("wait not success : %d\n", err);

@@ -37,21 +37,13 @@
 #include <synch.h>
 #include <wchan.h>
 
-/*
- * 08 Feb 2012 : GWA : Driver code is in kern/synchprobs/driver.c. We will
- * replace that file. This file is yours to modify as you see fit.
- *
- * You should implement your solution to the whalemating problem below.
- */
-
-// 13 Feb 2012 : GWA : Adding at the suggestion of Isaac Elbaz. These
-// functions will allow you to do local initialization. They are called at
-// the top of the corresponding driver code.
+/*Locks for each quadrant - Babu*/
 struct lock *lockquad0;
 struct lock *lockquad1;
 struct lock *lockquad2;
 struct lock *lockquad3;
-void inQuadrantSync(unsigned long);
+
+/*Get the corresponding lock for the destination quadrant */
 struct lock *getlock(int destQuadrant);
 
 struct whalemating
@@ -69,6 +61,19 @@ struct whalemating
 	volatile int match_female;
 };
 struct whalemating *whale_mating;
+
+
+/*
+ * 08 Feb 2012 : GWA : Driver code is in kern/synchprobs/driver.c. We will
+ * replace that file. This file is yours to modify as you see fit.
+ *
+ * You should implement your solution to the whalemating problem below.
+ */
+
+// 13 Feb 2012 : GWA : Adding at the suggestion of Isaac Elbaz. These
+// functions will allow you to do local initialization. They are called at
+// the top of the corresponding driver code.
+
 void whalemating_init() {
 
 
@@ -384,42 +389,9 @@ turnright(void *p, unsigned long direction)
 
 /*
  * Added by Babu
- * Function which serve as a wrapper to inQuadrant operations
- * along with synchronization primitive like lock
+ * Function which serve as a wrapper to get the correct inQuadrant
+ * locks based on the direction passed
  */
-void
-inQuadrantSync(unsigned long destQuadrant)
-{
-	struct lock *lockquad;
-	switch (destQuadrant)
-	{
-		case 0:
-			lockquad = lockquad0;
-			break;
-		case 1:
-			lockquad = lockquad1;
-			break;
-		case 2:
-			lockquad = lockquad2;
-			break;
-		case 3:
-			lockquad = lockquad3;
-			break;
-		default:
-			panic("unknown direction");
-			break;
-	}
-
-	/* If the lock is not held before, then acquire it */
-	if(!lock_do_i_hold(lockquad))
-	{
-		lock_acquire(lockquad);
-		inQuadrant(destQuadrant);
-		lock_release(lockquad);
-	}
-	return;
-}
-
 struct lock *
 getlock(int destQuadrant)
 {

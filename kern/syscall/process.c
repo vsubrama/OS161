@@ -22,6 +22,7 @@
 #include <vfs.h>
 #include <kern/wait.h>
 #include <process.h>
+#include <copyinout.h>
 
 /**
  * Added by Babu:
@@ -136,6 +137,7 @@ sys_getpid(int32_t *retval)
 	{
 		if(curthread->t_process != NULL)
 		{
+			//*retval = *curthread->t_process->p_pid_self;
 			memcpy(retval, &curthread->t_process->p_pid_self, sizeof(pid_t));
 			return 0;
 		}
@@ -154,7 +156,8 @@ sys_getppid(int32_t *retval)
 	{
 		if(curthread->t_process != NULL)
 		{
-			retval = &curthread->t_process->p_pid_parent;
+			//*retval = *curthread->t_process->p_pid_parent;
+			memcpy(retval, &curthread->t_process->p_pid_parent, sizeof(pid_t));
 			return 0;
 		}
 	}
@@ -169,6 +172,7 @@ sys_getppid(int32_t *retval)
 int
 sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 {
+	kprintf("Waiting for %d",pid);
 	struct process *childprocess = processtable[(int)pid];
 	int err = -1;
 
@@ -188,7 +192,21 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
         return EFAULT;
 
     // if exitcode alignment is not proper ?
-	if(exitcode == (int32_t *)0x7fffff9d)
+	//if(exitcode == (int32_t *)0x7fffff9d)
+		//return EFAULT;
+
+	// if exitcode alignment is not proper ?
+	//int result = -1;
+	//copyin((userptr_t)exitcode, testexitcode, sizeof(int32_t));
+	//result =
+    int i=0;
+    char * checkptr = (char *)exitcode;
+    while(checkptr[i] != 0)
+    {
+    	checkptr++;
+    	i++;
+    }
+	if(i%4 != 0)
 		return EFAULT;
 
 	// if flags are not proper
@@ -196,8 +214,20 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 	if(flags < 0 || flags > 2)
 		return EINVAL;
 
-	/*if(flags != 0)
-		return EINVAL;*/
+	// Dont wait for yourself :)
+	if(pid == curthread->t_process->p_pid_self)
+		return EFAULT;
+
+	if(pid == curthread->t_process->p_pid_parent)
+		return EFAULT;
+
+	/*Dont wait for siblings child*/
+	if(childprocess->p_pid_parent != -1)
+	{
+		if(curthread->t_process->p_pid_parent == childprocess->p_pid_parent)
+			return ECHILD;
+		//if(curthread->t_process)
+	}
 
 	if(childprocess->p_exited)
 	{
@@ -230,6 +260,9 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 void
 sys__exit(int exitstatus)
 {
+	int32_t pid = 0;
+	sys_getpid(&pid);
+	kprintf("Exiting for %d",pid);
 	if(curthread->t_process != NULL)
 	{
 		if(!curthread->t_process->p_exited)
