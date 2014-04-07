@@ -97,7 +97,7 @@
 #define __IOV_MAX       1024
 
 /* Max number of process which can run on os161*/
-#define _MAX_RUNNING_PROCS 256
+#define _MAX_RUNNING_PROCS 400
 
 
 /*Maximum number of file table entry per process */
