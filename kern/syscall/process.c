@@ -415,3 +415,143 @@ child_entrypoint(void *data1, unsigned long data2)
 
 }
 
+
+/** *
+ * Added by Babu
+ * execv() system call creates a process by reading from ELF file and
+ * loading it into the address space.
+ *
+ */
+int
+sys_execv(userptr_t userprgname, userptr_t userargv[])
+{
+
+	struct vnode *v;
+	vaddr_t entrypoint, stackptr;
+	int result, i=0, err, argsize= 0;
+	int argc = 0, totsize = 0 , totsizecnt = 0;
+	char *prgname = (char *)userprgname;
+	char **argv = (char **)userargv;
+	if(argv != NULL)
+	{
+		while(argv[i] != NULL)
+		{
+			argc++;
+			i++;
+		}
+	}
+
+	void *kbuf[argc];
+	int32_t *koffset[argc];
+	size_t copylen[argc];
+
+	/**Copyin user args to kernel buffer */
+	totsizecnt = (argc + 1) * sizeof(int32_t);
+	kprintf("Initial totsize : %d\n",totsize);
+
+	if(argv != NULL)
+	{
+		while(argv[i] != NULL)
+		{
+			argsize = strlen(argv[i]);
+			totsize = argsize + (4 - (argsize % 4));
+			kbuf[i] = (char *) kmalloc (totsize);
+			koffset[i] = (int32_t *) kmalloc(sizeof(int32_t));
+			err = copyinstr((const_userptr_t)argv[i], kbuf[i], argsize, &copylen[i]);
+			if(copylen[i] != (size_t)argsize)
+				return EFAULT;
+			if(err != 0)
+				return err;
+
+			// Assign the offset
+			err = copyin((userptr_t)(totsizecnt), koffset[i], sizeof(int32_t));
+			if(err != 0)
+				return err;
+			totsizecnt += totsize;
+			i++;
+		}
+	}
+	else
+		kprintf("user args null");
+
+	char *kprgname;
+	size_t copied;
+	if(prgname != NULL)
+	{
+		err = copyinstr((const_userptr_t)prgname, kprgname, strlen(prgname), &copied);
+		if(copied != strlen(prgname))
+			return EFAULT;
+		if(err != 0)
+			return err;
+	}
+
+	/* Open the file. */
+	result = vfs_open(prgname, O_RDONLY, 0, &v);
+	if (result) {
+		return result;
+	}
+
+	/* We should be a new thread. */
+	KASSERT(curthread->t_addrspace == NULL);
+
+	/* Create a new address space. */
+	curthread->t_addrspace = as_create();
+	if (curthread->t_addrspace==NULL) {
+		vfs_close(v);
+		return ENOMEM;
+	}
+
+	/* Activate it. */
+	as_activate(curthread->t_addrspace);
+
+	/* Load the executable. */
+	result = load_elf(v, &entrypoint);
+	if (result) {
+		/* thread_exit destroys curthread->t_addrspace */
+		vfs_close(v);
+		return result;
+	}
+
+	/* Done with the file now. */
+	vfs_close(v);
+
+	/* Define the user stack in the address space */
+	result = as_define_stack(curthread->t_addrspace, &stackptr);
+	if (result) {
+		/* thread_exit destroys curthread->t_addrspace */
+		return result;
+	}
+
+	// Starting address  of userstack from which args and pointers should be copied
+	vaddr_t userstckptr = stackptr - totsizecnt;
+	vaddr_t userargsptr = userstckptr + (vaddr_t)koffset[0];
+	size_t usercopylen[argc];
+
+	while(koffset[i] != NULL)
+	{
+		/* copyout user pointer (in kernel buffer) to user stack */
+		err = copyout(koffset[i],(userptr_t)userstckptr, sizeof(int32_t));
+		if(err != 0)
+			return err;
+		userstckptr += sizeof(int32_t);
+
+		/* Copyout user arguments (in kernel buffer) to user stack*/
+		err = copyoutstr((const char *)koffset,(userptr_t)userargsptr, copylen[i], &usercopylen[i]);
+		if(err != 0)
+			return err;
+		if(usercopylen[i] != copylen[i])
+			return EFAULT;
+		userargsptr += copylen[i];
+		i++;
+
+	}
+
+	/* Warp to user mode. */
+	enter_new_process(argc /*argc*/, (userptr_t)stackptr /*userspace addr of argv (TODO userstckptr or stackptr?)*/,
+			  stackptr, entrypoint);
+
+	/* enter_new_process does not return. */
+	panic("enter_new_process returned\n");
+	return EINVAL;
+
+}

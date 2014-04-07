@@ -362,6 +362,7 @@ docommand(char *buf)
 			return _MKWAIT_EXIT(255);
 		case 0:
 			/* child */
+			warn("args[0] : %s and args %s, %s, %s\n", args[0], args[1], args[2], args[3]);
 			execv(args[0], args);
 			warn("%s", args[0]);
 			/*

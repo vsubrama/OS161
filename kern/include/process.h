@@ -86,7 +86,7 @@ int sys_fork(int32_t *retval, struct trapframe *tf);
 /**
  * execv system call allows create process from the file and loads into address space and executes
  */
-int sys_execv(char *prgname, char *argv[]);
+int sys_execv(userptr_t prgname, userptr_t argv[]);
 
 /**
  * Entry point function for the child process/thread created by fork()
