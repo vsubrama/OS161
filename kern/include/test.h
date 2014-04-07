@@ -69,15 +69,12 @@ void whalemating_cleanup(void);
 * Added by Babu:
 * Locks for each quadrants
 **/
-struct lock *lockquad0;
-struct lock *lockquad1;
-struct lock *lockquad2;
-struct lock *lockquad3;
 
-void inQuadrant(int);
+
+
 void leaveIntersection(void);
 int stoplight(int, char **);
-
+void inQuadrant(int);
 void gostraight(void *, unsigned long);
 void turnleft(void *, unsigned long);
 void turnright(void *, unsigned long);

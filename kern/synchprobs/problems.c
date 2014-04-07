@@ -47,6 +47,11 @@
 // 13 Feb 2012 : GWA : Adding at the suggestion of Isaac Elbaz. These
 // functions will allow you to do local initialization. They are called at
 // the top of the corresponding driver code.
+	struct lock *lockquad0;
+	struct lock *lockquad1;
+	struct lock *lockquad2;
+	struct lock *lockquad3;
+
 struct whalemating{
 	volatile int num_male_whale;
 	volatile int num_female_whale;
@@ -296,6 +301,7 @@ matchmaker(void *p, unsigned long which)
 // the top of the corresponding driver code.
 
 void stoplight_init() {
+
 	lockquad0 = lock_create("quad0lk");
 	lockquad1 = lock_create("quad1lk");
 	lockquad2 = lock_create("quad2lk");
