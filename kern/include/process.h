@@ -36,6 +36,7 @@ struct process {
 
 struct process *processtable[256];
 
+struct lock *pid_sem;
 
 /**
  * When a process exits it should invoke this method so that
