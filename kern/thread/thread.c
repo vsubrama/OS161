@@ -909,7 +909,11 @@ thread_exit(void)
      * */
 	if(curthread->t_process->p_pid_parent > 0 && processtable[(int)curthread->t_process->p_pid_parent] != NULL)
 	{
+<<<<<<< HEAD
 		//kprintf("parent might be waiting...");
+=======
+//		kprintf("parent might be waiting...");
+>>>>>>> f924a75cb832bb362d6d87c3eb4f71cc8097d5ab
 		V(curthread->t_process->p_exitsem);
 	}
 
