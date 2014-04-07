@@ -80,7 +80,7 @@ void turnleft(void *, unsigned long);
 void turnright(void *, unsigned long);
 void stoplight_init(void);
 void stoplight_cleanup(void);
-void inQuadrantSync(unsigned long);
+
 
 /*
  * Test code.

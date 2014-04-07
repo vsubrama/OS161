@@ -51,7 +51,7 @@
 	struct lock *lockquad1;
 	struct lock *lockquad2;
 	struct lock *lockquad3;
-
+	void inQuadrantSync(unsigned long);
 struct whalemating{
 	volatile int num_male_whale;
 	volatile int num_female_whale;
