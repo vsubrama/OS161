@@ -5,8 +5,6 @@
  *  Author: Babu
  */
 
-//#include <process.h>
-
 #include <types.h>
 #include <kern/errno.h>
 #include <kern/syscall.h>
@@ -23,7 +21,7 @@
 #include <copyinout.h>
 #include <vfs.h>
 #include <kern/wait.h>
-
+#include <process.h>
 
 /**
  * Added by Babu:
@@ -164,7 +162,7 @@ sys_getppid(int32_t *retval)
 }
 
 /**
- * Added by Babu : 04/02/2014
+ * Added by Babu : 04/02/2014warn
  * Waitpid will wait for the process to change status/destroyed and collect the return status
  * process which are not collected the return status remain as 'zombies'
  */
@@ -173,19 +171,33 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 {
 	struct process *childprocess = processtable[(int)pid];
 	int err = -1;
-	kprintf("Inside waitpid\n");
-	/*Argument checking*/
-	// if child process does not exist
+
+	if(pid < 1)
+		return EINVAL;
+
 	if(childprocess == NULL)
 		return EINVAL;
 
-	// if exitcode alignment is not proper ? DOUBT
-	if(sizeof(exitcode) != sizeof(int32_t))
+    if(exitcode == NULL)
+    	return EFAULT;
+
+    if(exitcode == (void *)0x80000000) // Kernel pointer check
+        return EFAULT;
+
+    if(exitcode == (void *)0x40000000)  // Invalid pointer check
+        return EFAULT;
+
+    // if exitcode alignment is not proper ?
+	if(exitcode == (int32_t *)0x7fffff9d)
 		return EFAULT;
 
 	// if flags are not proper
-	if(flags != WNOHANG && flags != WUNTRACED)
+	//if(flags != WNOHANG && flags != WUNTRACED)
+	if(flags < 0 || flags > 2)
 		return EINVAL;
+
+	/*if(flags != 0)
+		return EINVAL;*/
 
 	if(childprocess->p_exited)
 	{
@@ -195,7 +207,7 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 		*exitcode =  childprocess->p_exitcode;
 		*retval = childprocess->p_pid_self;
 		process_destroy(childprocess);
-		err = EFAULT;
+		err = 0;
 	}
 	else
 	{
@@ -228,7 +240,7 @@ sys__exit(int exitstatus)
 			 *
 			 */
 			/* Free thread structure and destroy all the thread related book keeping stuffs*/
-			kprintf("thread exited successfully.\n");
+			//kprintf("thread exited successfully.\n");
 			thread_exit();
 		}
 	}
@@ -251,10 +263,10 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 {
 	struct addrspace *child_addrspce = NULL;
 	struct process *child = NULL;
-	int spl = 0;
+//	/int spl = 0;
 	struct process *parent = NULL;
 	struct trapframe *child_trapframe = NULL;
-	int retvalfork = 1;
+	int retvalfork = 0;
 	/**
 	 * Create
 	 */
@@ -278,10 +290,13 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 	child->p_pid_self = allocate_pid();
 	child->p_exited = false;
 	child->p_exitsem = sem_create("p_exitsem", 0);
-	child_trapframe = kmalloc(sizeof(struct trapframe));
+
+	/* Assigning in process table */
+	processtable[(int)child->p_pid_self] = child;
 
 	/* create a copy of trapframe using memcpy */
-	memcpy(child_trapframe, tf, sizeof(tf));
+	child_trapframe = kmalloc(sizeof(struct trapframe));
+	memcpy(child_trapframe, tf, sizeof(struct trapframe));
 
 	/* Addres space and file table cloning from parent */
 	as_copy(parent->p_thread->t_addrspace, &child_addrspce);
@@ -295,14 +310,14 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 	}*/
 
 	/* disable interrupts*/
-	spl  = splhigh();
+	//spl  = splhigh();
 
 	/**
 	 * copy parent trapframe to the child process
 	 * and invoke creating child thread
 	 */
-	tf->tf_a0 = (uint32_t) child_addrspce;
-	retvalfork = thread_fork("child process", child_entrypoint, tf,(unsigned long) child_addrspce, &child->p_thread);
+	//tf->tf_a0 = (uint32_t) child_addrspce;
+	retvalfork = thread_fork("child process", child_entrypoint, child_trapframe,(unsigned long) child_addrspce, &child->p_thread);
 	//kprintf("return value of thread_fork : %d\n",retvalfork);
 
 	/*Assigning the process structure to the thread just got created*/
@@ -310,9 +325,10 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 
 	/* Return values as child process pid */
 	*retval = child->p_pid_self;
+	//copyout(&child->p_pid_self, (userptr_t) retval, sizeof(child->p_pid_self));
 
 	/* enable interrupts again*/
-	splx(spl);
+	//splx(spl);
 
 	/* Return success or error code  */
 	return retvalfork;
@@ -336,7 +352,7 @@ child_entrypoint(void *data1, unsigned long data2)
 
 	if(child_addrspce == NULL || child_tf == NULL) /* To indicate failure of child fork */
 	{
-		child_tf->tf_v0 = EFAULT;
+		child_tf->tf_v0 = 15;
 		child_tf->tf_a3 = 1;
 		panic("child entry point failed");
 	}
@@ -362,7 +378,7 @@ child_entrypoint(void *data1, unsigned long data2)
 	/* And enter user mode*/
 	mips_usermode(&tf_copy);
 
-	kprintf("user mode entered successfully /n");
+	//kprintf("user mode entered successfully /n");
 
 }
 

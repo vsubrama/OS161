@@ -119,6 +119,7 @@ syscall(struct trapframe *tf)
 		 */
 	    case SYS_fork:
 	        err = sys_fork(&retval, tf);
+	        //kprintf("ret val : %d and err no : %d\n",retval, err);
 	    	break;
 
 	    case SYS_execv:
@@ -197,7 +198,6 @@ syscall(struct trapframe *tf)
 		break;
 	}
 
-
 	if (err) {
 		/*
 		 * Return the error code. This gets converted at
@@ -217,7 +217,7 @@ syscall(struct trapframe *tf)
 	 * Now, advance the program counter, to avoid restarting
 	 * the syscall over and over again.
 	 */
-	
+
 	tf->tf_epc += 4;
 
 	/* Make sure the syscall code didn't forget to lower spl */

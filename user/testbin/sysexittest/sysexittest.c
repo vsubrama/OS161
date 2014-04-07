@@ -19,16 +19,16 @@ int
 main()
 {
 	//printf("entering sysexit test");
-	//int pid = fork();
-	//if(pid == 0)
-	//{
-	//	warnx("child thread");
-	//}
-	//else
-	//{
-	//	warnx("parent thread");
-	//}			
-	//warnx(" fork pid : %d \n", pid);
+	int pid = fork();
+	if(pid == 0)
+	{
+		warnx("child thread");
+	}
+	else
+	{
+		warnx("parent thread");
+	}			
+	warnx(" fork pid : %d \n", pid);
 	exit(0);
 	return 0;
 }

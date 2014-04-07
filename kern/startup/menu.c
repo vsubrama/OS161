@@ -96,11 +96,11 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	}
 
 	/* Hope we fit. */
-	kprintf("Passed function name %s\n",args[0]);
+	//kprintf("Passed function name %s\n",args[0]);
 	KASSERT(strlen(args[0]) < sizeof(progname));
 	strcpy(progname,args[0]);
 
-	kprintf("progname : %s\n", progname);
+	//kprintf("progname : %s\n", progname);
 	result = runprogram(args[0]);
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
@@ -138,7 +138,7 @@ common_prog(int nargs, char **args)
 	pid_t retpid ;
 	//struct thread *parentthread = curthread;
 	int status = 0 , err = 0;
-	kprintf("before thread fork args  : %s, %s\n", args[0], args[1]);
+	//kprintf("before thread fork args  : %s, %s\n", args[0], args[1]);
 	result = thread_fork(args[0] /* thread name */,
 			cmd_progthread /* thread function */,
 			args /* thread arg */, nargs /* thread arg */,
@@ -149,7 +149,7 @@ common_prog(int nargs, char **args)
 		// Parent wait
 
 		//err = waitpid(newthread->t_process->p_pid_self, &status, 1);
-		err = sys_waitpid(&retpid, newthread->t_process->p_pid_self, &status, 1);
+		err = sys_waitpid(&retpid, newthread->t_process->p_pid_self, &status, 2);
 		if(err != 0)
 		{
 			kprintf("wait not success : %d\n", err);

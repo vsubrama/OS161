@@ -160,8 +160,16 @@ thread_create(const char *name)
 
 	/* VFS fields */
 	thread->t_cwd = NULL;
+	if(pid_sem == NULL)
+		//pid_sem = sem_create("pid_sem",1);
+		pid_sem = lock_create("pid_sem");
 
+	/* To protect from multiple thread generating pid same time - Babu*/
+	lock_acquire(pid_sem);
+	//P(pid_sem);
 	thread->t_process->p_pid_self = allocate_pid();
+	//V(pid_sem);
+	lock_release(pid_sem);
 
 	if( thread->t_process->p_pid_self > 4) /* curr thread is the parent */
 		thread->t_process->p_pid_parent = curthread->t_process->p_pid_self;
@@ -901,7 +909,7 @@ thread_exit(void)
      * */
 	if(curthread->t_process->p_pid_parent > 0 && processtable[(int)curthread->t_process->p_pid_parent] != NULL)
 	{
-		kprintf("parent might be waiting...");
+		//kprintf("parent might be waiting...");
 		V(curthread->t_process->p_exitsem);
 	}
 
