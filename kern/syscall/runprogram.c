@@ -126,48 +126,53 @@ runprogram(char *progname, char *argv[])
 		}
 	}
 
-	void *kbuf[argc];
+	char *kbuf[argc];
 	int32_t *koffset[argc];
 	size_t copylen[argc];
 
-	/**Copyin user args to kernel buffer */
-	totsizecnt = (argc + 1) * sizeof(int32_t);
-	kprintf("Initial totsize : %d\n",totsize);
-	j = 1;
-	if(argv != NULL)
+	if(argc != 0)
 	{
-		while(argv[j] != NULL)
+
+		/**Copyin user args to kernel buffer */
+		totsizecnt = (argc + 1) * sizeof(int32_t);
+		kprintf("Initial totsize : %d\n",totsize);
+		j = 1;
+		if(argv != NULL)
 		{
-			argsize = strlen(argv[j]);
-			totsize = argsize + (4 - (argsize % 4));
-			kbuf[j] = (char *) kmalloc (totsize);
-			koffset[j] = (int32_t *) kmalloc(sizeof(int32_t));
-			err = copyinstr((const_userptr_t)argv[j], kbuf[j], argsize, &copylen[j]);
-			if(copylen[j] != (size_t)argsize)
-				return EFAULT;
-			if(err != 0)
-				return err;
+			while(argv[j] != NULL)
+			{
+				argsize = strlen(argv[j]);
+				totsize = argsize + (4 - (argsize % 4));
+				kbuf[j] = (char *) kmalloc (sizeof(char) * argsize);
+				koffset[j] = (int32_t *) kmalloc(sizeof(int32_t));
+				err = copyinstr((const_userptr_t)argv[j], kbuf[j], argsize, &copylen[j]);
+				//if(copylen[j] != (size_t)argsize)
+					//return EFAULT;
+				if(err != 0)
+					return err;
 
-			// Assign the offset
-			err = copyin((userptr_t)(totsizecnt), koffset[j], sizeof(int32_t));
-			if(err != 0)
-				return err;
-			totsizecnt += totsize;
-			j++;
+				// Assign the offset
+				err = copyin((userptr_t)(totsizecnt), koffset[j], sizeof(int32_t));
+				if(err != 0)
+					return err;
+				totsizecnt += totsize;
+				j++;
+			}
 		}
-	}
-	else
-		kprintf("user args null");
+		else
+			kprintf("user args null");
 
-	char *kprgname;
-	size_t copied;
-	if(progname != NULL)
-	{
-		err = copyinstr((const_userptr_t)progname, kprgname, strlen(progname), &copied);
-		if(copied != strlen(progname))
-			return EFAULT;
-		if(err != 0)
-			return err;
+		char *kprgname;
+		size_t copied;
+		if(progname != NULL)
+		{
+			err = copyinstr((const_userptr_t)progname, kprgname, strlen(progname), &copied);
+			//if(copied != strlen(progname))
+				//return EFAULT;
+			if(err != 0)
+				return err;
+		}
+
 	}
 
 
@@ -209,28 +214,31 @@ runprogram(char *progname, char *argv[])
 		return result;
 	}
 
-	// Starting address  of userstack from which args and pointers should be copied
-	vaddr_t userstckptr = stackptr - totsizecnt;
-	vaddr_t userargsptr = userstckptr + (vaddr_t)koffset[0];
-	size_t usercopylen[argc];
-
-	while(koffset[j] != NULL)
+	if(argc != 0)
 	{
-		/* copyout user pointer (in kernel buffer) to user stack */
-		err = copyout(koffset[j],(userptr_t)userstckptr, sizeof(int32_t));
-		if(err != 0)
-			return err;
-		userstckptr += sizeof(int32_t);
+		// Starting address  of userstack from which args and pointers should be copied
+		vaddr_t userstckptr = stackptr - totsizecnt;
+		vaddr_t userargsptr = userstckptr + (vaddr_t)koffset[0];
+		size_t usercopylen[argc];
 
-		/* Copyout user arguments (in kernel buffer) to user stack*/
-		err = copyoutstr((const char *)koffset,(userptr_t)userargsptr, copylen[j], &usercopylen[j]);
-		if(err != 0)
-			return err;
-		if(usercopylen[j] != copylen[j])
-			return EFAULT;
-		userargsptr += copylen[j];
-		j++;
+		while(koffset[j] != NULL)
+		{
+			/* copyout user pointer (in kernel buffer) to user stack */
+			err = copyout(koffset[j],(userptr_t)userstckptr, sizeof(int32_t));
+			if(err != 0)
+				return err;
+			userstckptr += sizeof(int32_t);
 
+			/* Copyout user arguments (in kernel buffer) to user stack*/
+			err = copyoutstr((const char *)koffset,(userptr_t)userargsptr, copylen[j], &usercopylen[j]);
+			if(err != 0)
+				return err;
+			//if(usercopylen[j] != copylen[j])
+				//return EFAULT;
+			userargsptr += copylen[j];
+			j++;
+
+		}
 	}
 
 	/* Warp to user mode. */

@@ -182,7 +182,7 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 	if(childprocess == NULL)
 		return EINVAL;
 
-    if(exitcode == NULL)
+	if(exitcode == NULL)
     	return EFAULT;
 
     if(exitcode == (void *)0x80000000) // Kernel pointer check
