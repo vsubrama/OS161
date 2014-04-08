@@ -339,3 +339,17 @@ __getcwd(userptr_t buf, size_t buflen)
 	}
 	return uio.uio_offset;
 }
+int
+sys_remove(userptr_t p)
+{
+	char pbuf_store[PATH_MAX];
+	int err;
+
+	err = copyinstr(p, pbuf_store, sizeof(pbuf_store), NULL);
+	if (!err) {
+		return vfs_remove(pbuf_store);
+	}
+	else {
+		return err;
+	}
+}

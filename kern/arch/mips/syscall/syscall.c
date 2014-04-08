@@ -191,7 +191,8 @@ syscall(struct trapframe *tf)
         case SYS___getcwd:
 			err = __getcwd((userptr_t)tf->tf_a0,(size_t)tf->tf_a1);
 			break;
-
+        case SYS_remove:
+        		err = sys_remove((userptr_t)tf->tf_a0);
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
