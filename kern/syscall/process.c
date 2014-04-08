@@ -176,7 +176,7 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 	struct process *childprocess = processtable[(int)pid];
 	int err = -1;
 
-	if(pid < 1)
+	if(pid < 1 || pid > MAX_RUNNING_PROCS)
 		return EINVAL;
 
 	if(childprocess == NULL)
