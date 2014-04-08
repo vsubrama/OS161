@@ -57,17 +57,13 @@ add_pid_to_pool(pid_t pid_free)
 	if(tail == NULL)
 	{
 		tail = kmalloc(sizeof(struct pid_pool));
-		if(tail == NULL)
-			panic("Unable to create pid pool.");
-		else
+		if(tail != NULL)
 			tail->pid_avail = pid_free;
 	}
 	else
 	{
 		tail->next = kmalloc(sizeof(struct pid_pool));
-		if(tail->next == NULL)
-			panic("Unable to create pid pool element.");
-		else
+		if(tail->next != NULL)
 		{
 			tail = tail->next;
 			tail->pid_avail = pid_free;
@@ -92,7 +88,7 @@ allocate_pid()
 		if(global_pid_count < MAX_RUNNING_PROCS)
 			pid_alloc = global_pid_count++;
 		else
-			panic("Maximum number of process reached");
+			return ENOMEM;
 	}
 	else
 	{
@@ -311,7 +307,12 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 
 	parent = curthread->t_process;
 	if(parent == NULL)
-		panic("parent process retrieve operation failed");
+	{
+		*retval = ENOMEM;
+		return -1;
+	}
+
+		//panic("parent process retrieve operation failed");
 
 	parent->p_thread = curthread;
 	//parent_trapframe = tf;
@@ -321,7 +322,11 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 	 */
 	child  = kmalloc(sizeof(struct process));
 	if(child == NULL)
-		panic("Child process creation failed");
+	{
+		*retval = ENOMEM;
+		return -1;
+	}
+		//panic("Child process creation failed");
 
 	/* Child process struct init */
 	child->p_pid_parent = parent->p_pid_self;
@@ -334,6 +339,11 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 
 	/* create a copy of trapframe using memcpy */
 	child_trapframe = kmalloc(sizeof(struct trapframe));
+	if(child_trapframe == NULL)
+	{
+		*retval = ENOMEM;
+		return -1;
+	}
 	memcpy(child_trapframe, tf, sizeof(struct trapframe));
 
 	/* Addres space and file table cloning from parent */
@@ -359,6 +369,22 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 	//kprintf("return value of thread_fork : %d\n",retvalfork);
 
 	/*Assigning the process structure to the thread just got created*/
+	if(child == NULL)
+	{
+		*retval = ENOMEM;
+		return -1;
+	}
+	if(child->p_thread == NULL)
+	{
+		*retval = ENOMEM;
+		return -1;
+	}
+
+	if(child->p_thread->t_process == NULL)
+	{
+		*retval = ENOMEM;
+		return -1;
+	}
 	child->p_thread->t_process = child;
 
 	/* Return values as child process pid */
@@ -384,14 +410,12 @@ child_entrypoint(void *data1, unsigned long data2)
 	struct trapframe *child_tf = (struct trapframe *) data1;
 	struct addrspace *child_addrspce = (struct addrspace *) data2;
 
-	/*if(child_addrspce == NULL)
-		child_addrspce = (struct addrspace *) child_tf->tf_a0;*/
-
 
 	if(child_addrspce == NULL || child_tf == NULL) /* To indicate failure of child fork */
 	{
-		child_tf->tf_v0 = 15;
+		child_tf->tf_v0 = ENOMEM;
 		child_tf->tf_a3 = 1;
+		return;
 		//panic("child entry point failed");
 	}
 	else /* To indicate success of child fork */
