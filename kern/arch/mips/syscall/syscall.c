@@ -164,7 +164,7 @@ syscall(struct trapframe *tf)
         	break;
 
         case SYS_dup2:
-        	err = dup2(tf->tf_a0,tf->tf_a1,&err);
+        	ret = dup2(tf->tf_a0,tf->tf_a1,&err);
         	break;
 
         case SYS_lseek:
@@ -189,7 +189,7 @@ syscall(struct trapframe *tf)
         	break;
 
         case SYS___getcwd:
-			err = __getcwd((userptr_t)tf->tf_a0,(size_t)tf->tf_a1,&err);
+			ret = __getcwd((userptr_t)tf->tf_a0,(size_t)tf->tf_a1,&err);
 			break;
         case SYS_remove:
         		err = sys_remove((userptr_t)tf->tf_a0);
