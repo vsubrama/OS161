@@ -308,33 +308,32 @@ chdir(const_userptr_t pathname)
 
 	if (pathname == NULL)
 	{
-		return -1;
+		return EFAULT;
 	}
 
 	int ret = copyinstr(pathname,new_path,PATH_MAX,&get);
 
 	if (ret)
 	{
-		return -1;
+		return EFAULT;
 	}
 
 	return vfs_chdir(new_path);
 }
 int
-__getcwd(userptr_t buf, size_t buflen)
+__getcwd(userptr_t buf, size_t buflen,int *err)
 {
 	char path[PATH_MAX];
-	int ret;
 	struct iovec iov;
 	struct uio uio;
 	uio_kinit(&iov,&uio,path,PATH_MAX,0,UIO_READ);
-	ret = vfs_getcwd(&uio);
-	if (ret)
+	*err = vfs_getcwd(&uio);
+	if (*err)
 	{
 		return -1;
 	}
-	ret = copyout((userptr_t)path,buf,buflen);
-	if (ret)
+	*err = copyout((userptr_t)path,buf,buflen);
+	if (*err)
 	{
 		return -1;
 	}

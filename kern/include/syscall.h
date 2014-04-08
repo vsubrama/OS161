@@ -67,6 +67,6 @@ int write(int fd, userptr_t buf, size_t buflen,int *err);
 int dup2(int oldfd, int newfd);
 off_t lseek(int fd,off_t pos, int whence, int *err);
 int chdir(const_userptr_t pathname);
-int __getcwd(userptr_t buf, size_t buflen);
+int __getcwd(userptr_t buf, size_t buflen,int *err);
 int sys_remove(userptr_t p);
 #endif /* _SYSCALL_H_ */
