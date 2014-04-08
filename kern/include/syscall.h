@@ -64,7 +64,7 @@ int open(userptr_t filename, int flags,int *err);
 int close(int fd);
 int read(int fd, userptr_t buf, size_t buflen,int *err);
 int write(int fd, userptr_t buf, size_t buflen,int *err);
-int dup2(int oldfd, int newfd);
+int dup2(int oldfd, int newfd,int *err);
 off_t lseek(int fd,off_t pos, int whence, int *err);
 int chdir(const_userptr_t pathname);
 int __getcwd(userptr_t buf, size_t buflen,int *err);

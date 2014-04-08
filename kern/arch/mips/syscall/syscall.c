@@ -164,7 +164,7 @@ syscall(struct trapframe *tf)
         	break;
 
         case SYS_dup2:
-        	err = dup2(tf->tf_a0,tf->tf_a1);
+        	err = dup2(tf->tf_a0,tf->tf_a1,&err);
         	break;
 
         case SYS_lseek:

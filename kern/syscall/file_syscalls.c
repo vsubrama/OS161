@@ -272,32 +272,29 @@ lseek(int fd,off_t pos, int whence,int *err)
 	return curthread->ft[fd]->offset;
 }
 int
-dup2(int oldfd, int newfd)
+dup2(int ofile_desc, int nfile_desc,int *err)
 {
-	int ret;
-		if ( oldfd < 0 || oldfd > OPEN_MAX || newfd < 0 || newfd > OPEN_MAX)
+		if ( ofile_desc < 0 || ofile_desc > OPEN_MAX || nfile_desc < 0 ||
+				nfile_desc > OPEN_MAX || curthread->ft[ofile_desc] == NULL || curthread->ft[nfile_desc] == NULL)
 		{
+			*err = EBADF;
 			return -1;
 		}
-		if (curthread->ft[oldfd] == NULL || curthread->ft[newfd] == NULL)
+		if (curthread->ft[ofile_desc] == curthread->ft[nfile_desc] || ofile_desc == nfile_desc)
 		{
-			return -1;
+		    return ofile_desc;
 		}
-		if (curthread->ft[oldfd] == curthread->ft[newfd] || oldfd == newfd)
+		if (curthread->ft[nfile_desc] != NULL)
 		{
-		    return oldfd;
-		}
-		if (curthread->ft[newfd] != NULL)
-		{
-		   ret = close(newfd);
-		   if (ret)
+		   *err = close(nfile_desc);
+		   if (*err)
 		      return -1;
 		}
-		curthread->ft[newfd] = curthread->ft[oldfd];
-		lock_acquire(curthread->ft[newfd]->lock);
-		curthread->ft[newfd]->ref_count++;
-		lock_release(curthread->ft[newfd]->lock);
-		return newfd;
+		curthread->ft[nfile_desc] = curthread->ft[ofile_desc];
+		lock_acquire(curthread->ft[nfile_desc]->lock);
+		curthread->ft[nfile_desc]->ref_count++;
+		lock_release(curthread->ft[nfile_desc]->lock);
+		return nfile_desc;
 }
 
 int
