@@ -94,8 +94,8 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	KASSERT(nargs >= 1);
 
 	if (nargs > 2) {
-		//kprintf("Warning: argument passing from menu not supported\n");
-		kprintf("Multiple arguments passed : %d \n",(int)nargs);
+		kprintf("Warning: argument passing from menu not supported\n");
+		//kprintf("Multiple arguments passed : %d \n",(int)nargs);
 	}
 
 	/* Hope we fit. */
@@ -142,7 +142,7 @@ common_prog(int nargs, char **args)
 	pid_t retpid ;
 	//struct thread *parentthread = curthread;
 	int status = 0 , err = 0;
-	kprintf("before thread fork args  : %s, %s\n", args[0], args[1]);
+	//kprintf("before thread fork args  : %s, %s\n", args[0], args[1]);
 	result = thread_fork(args[0] /* thread name */,
 			cmd_progthread /* thread function */,
 			args /* thread arg */, nargs /* thread arg */,
@@ -184,7 +184,7 @@ cmd_prog(int nargs, char **args)
 		return EINVAL;
 	}
 
-	kprintf("cmd_prg args  : %s, %s\n", args[0], args[1]);
+	//kprintf("cmd_prg args  : %s, %s\n", args[0], args[1]);
 
 	/* drop the leading "p" */
 	args++;

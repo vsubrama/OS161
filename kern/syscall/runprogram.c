@@ -141,7 +141,8 @@ runprogram(char *progname, char *argv[], unsigned long argc)
 		j = 0;
 		if(argv != NULL)
 		{
-			while(argv[j] != NULL)
+			//while(argv[j] != NULL)
+			for(j=0;j<argc; j++)
 			{
 				argsize = strlen(argv[j]) + 1;
 				totsize = argsize + (4 - (argsize % 4));
@@ -162,7 +163,6 @@ runprogram(char *progname, char *argv[], unsigned long argc)
 				//if(err != 0)
 					//return err;
 				totsizecnt += totsize;
-				j++;
 			}
 			koffset[j] = NULL;
 		}
