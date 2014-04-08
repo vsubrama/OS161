@@ -608,7 +608,7 @@ cmd_dispatch(char *cmd)
 	char *context;
 	int i, result;
 
-	kprintf("cmd : %s\n",cmd);
+	//kprintf("cmd : %s\n",cmd);
 
 	for (word = strtok_r(cmd, " \t", &context);
 	     word != NULL;
@@ -618,9 +618,9 @@ cmd_dispatch(char *cmd)
 			kprintf("Command line has too many words\n");
 			return E2BIG;
 		}
-		kprintf("original wrd :%s\n",word);
+		//kprintf("original wrd :%s\n",word);
 		args[nargs++] = word;
-		kprintf("args :%s\n",args[nargs-1]);
+		//kprintf("args :%s\n",args[nargs-1]);
 	}
 
 	if (nargs==0) {
