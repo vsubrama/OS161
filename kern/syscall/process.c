@@ -425,7 +425,6 @@ child_entrypoint(void *data1, unsigned long data2)
 int
 sys_execv(userptr_t userprgname, userptr_t userargv[])
 {
-
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
 	int result, j=0, err, argsize= 0;
@@ -433,10 +432,37 @@ sys_execv(userptr_t userprgname, userptr_t userargv[])
 	char *prgname = (char *)userprgname;
 	char **argv = (char **)userargv;
 
+	if(userprgname == NULL || userargv == NULL)
+		return EFAULT;
+
+	if((void *)userprgname == (void *)0x40000000 || (void *)userargv == (void *)0x40000000)
+		return EFAULT;
+
+	if((void *)userprgname == (void *)0x80000000 || (void *)userargv == (void *)0x80000000)
+		return EFAULT;
+
+	if((char *)userprgname == "\0" || (char *)userprgname == "")
+		return EINVAL;
+
+	if(*argv == "\0" || *argv == "")
+		return EINVAL;
+
+	if(strlen(prgname) == 0 || strlen(*argv) == 0)
+		return EINVAL;
+
+	if(strcmp(prgname,"\0") == 0 || strcmp(prgname,"") == 0)
+		return EINVAL;
+
+	if(strcmp(*argv,"\0") == 0 || strcmp(*argv,"") == 0)
+		return EINVAL;
+
+
 	if(argv != NULL)
 	{
 		while(argv[j] != NULL)
 		{
+			if((void *)userargv[j] == (void *)0x80000000 ||  (void *)userargv[j] == (void *)0x40000000)
+				return EFAULT;
 			argc++;
 			j++;
 		}
