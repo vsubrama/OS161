@@ -218,17 +218,18 @@ lseek(int fd,off_t pos, int whence,int *err)
 	off_t nPos=0;
 	struct stat eoFILE;
 	//kprintf("lseek entered\n");
+	if ( fd < 0 || fd > OPEN_MAX)
+		{
+			*err = EBADF;
+			 return -1;
+		}
 	if (curthread->ft[fd] == NULL)
 	{
 		*err = EBADF;
 		 return -1;
 	}
 	//kprintf("curthread->ft[fd] == NULL\n");
-	if ( fd < 0 || fd > OPEN_MAX)
-	{
-		*err = EBADF;
-		 return -1;
-	}
+
 	//kprintf("fd < 0 || fd > OPEN_MAX\n");
 	if (whence != SEEK_SET && whence != SEEK_CUR && whence != SEEK_END)
 	{
@@ -338,4 +339,18 @@ __getcwd(userptr_t buf, size_t buflen)
 		return -1;
 	}
 	return uio.uio_offset;
+}
+int
+sys_remove(userptr_t p)
+{
+	char pbuf_store[PATH_MAX];
+	int err;
+
+	err = copyinstr(p, pbuf_store, sizeof(pbuf_store), NULL);
+	if (!err) {
+		return vfs_remove(pbuf_store);
+	}
+	else {
+		return err;
+	}
 }
