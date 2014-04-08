@@ -49,6 +49,7 @@
 #include <vnode.h>
 #include <limits.h>
 #include <process.h>
+#include <syscall.h>
 
 #include "opt-synchprobs.h"
 #include "opt-defaultscheduler.h"
@@ -874,6 +875,7 @@ thread_exit(void)
 		if (curthread->ft[i] !=  NULL)
 		{
 			// close file descriptor. Ask vasanth
+			//close(i);
 		}
 	}
 
@@ -907,13 +909,8 @@ thread_exit(void)
     /* Added by Babu :
      * return if invalid parent and return if parent already exited
      * */
-	if(curthread->t_process->p_pid_parent > 0 && processtable[(int)curthread->t_process->p_pid_parent] != NULL)
+	//if(curthread->t_process->p_pid_parent > 0 && processtable[(int)curthread->t_process->p_pid_parent] != NULL)
 	{
-//<<<<<<< HEAD
-		//kprintf("parent might be waiting...");
-//=======
-//		kprintf("parent might be waiting...");
-//>>>>>>> f924a75cb832bb362d6d87c3eb4f71cc8097d5ab
 		V(curthread->t_process->p_exitsem);
 	}
 

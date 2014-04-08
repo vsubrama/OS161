@@ -172,7 +172,7 @@ sys_getppid(int32_t *retval)
 int
 sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 {
-	kprintf("Waiting for %d",pid);
+	//kprintf("Waiting for %d",pid);
 	struct process *childprocess = processtable[(int)pid];
 	int err = -1;
 
@@ -262,7 +262,7 @@ sys__exit(int exitstatus)
 {
 	int32_t pid = 0;
 	sys_getpid(&pid);
-	kprintf("Exiting for %d",pid);
+	//kprintf("Exiting for %d",pid);
 	if(curthread->t_process != NULL)
 	{
 		if(!curthread->t_process->p_exited)
