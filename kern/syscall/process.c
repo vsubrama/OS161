@@ -209,6 +209,11 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 	if(i%4 != 0)
 		return EFAULT;
 
+	if(sizeof(checkptr)%4 != 0)
+		return EFAULT;
+
+
+
 	// if flags are not proper
 	//if(flags != WNOHANG && flags != WUNTRACED)
 	if(flags < 0 || flags > 2)
@@ -387,7 +392,7 @@ child_entrypoint(void *data1, unsigned long data2)
 	{
 		child_tf->tf_v0 = 15;
 		child_tf->tf_a3 = 1;
-		panic("child entry point failed");
+		//panic("child entry point failed");
 	}
 	else /* To indicate success of child fork */
 	{
