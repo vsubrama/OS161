@@ -235,6 +235,8 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 		/*collect the exitstatus and return*/
 		//memcpy(exitcode, &childprocess->p_exitcode, sizeof(int));
 		//memcpy(retval, &childprocess->p_pid_self, sizeof(pid_t));
+		if(sizeof(*exitcode) != 4)
+			return EFAULT;
 		*exitcode =  childprocess->p_exitcode;
 		*retval = childprocess->p_pid_self;
 		process_destroy(childprocess);
