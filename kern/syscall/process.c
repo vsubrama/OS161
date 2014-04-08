@@ -428,62 +428,72 @@ sys_execv(userptr_t userprgname, userptr_t userargv[])
 
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
-	int result, i=0, err, argsize= 0;
+	int result, j=0, err, argsize= 0;
 	int argc = 0, totsize = 0 , totsizecnt = 0;
 	char *prgname = (char *)userprgname;
 	char **argv = (char **)userargv;
+
 	if(argv != NULL)
 	{
-		while(argv[i] != NULL)
+		while(argv[j] != NULL)
 		{
 			argc++;
-			i++;
+			j++;
 		}
 	}
 
-	void *kbuf[argc];
+	char *kbuf[argc];
 	int32_t *koffset[argc];
 	size_t copylen[argc];
 
-	/**Copyin user args to kernel buffer */
-	totsizecnt = (argc + 1) * sizeof(int32_t);
-	kprintf("Initial totsize : %d\n",totsize);
-
-	if(argv != NULL)
+	if(argc != 0)
 	{
-		while(argv[i] != NULL)
+
+		/**Copyin user args to kernel buffer */
+		totsizecnt = (argc + 1) * sizeof(int32_t);
+
+		j = 0;
+		if(argv != NULL)
 		{
-			argsize = strlen(argv[i]);
-			totsize = argsize + (4 - (argsize % 4));
-			kbuf[i] = (char *) kmalloc (totsize);
-			koffset[i] = (int32_t *) kmalloc(sizeof(int32_t));
-			err = copyinstr((const_userptr_t)argv[i], kbuf[i], argsize, &copylen[i]);
-			if(copylen[i] != (size_t)argsize)
-				return EFAULT;
-			if(err != 0)
-				return err;
+			while(argv[j] != NULL)
+			{
+				argsize = strlen(argv[j]) + 1;
+				totsize = argsize + (4 - (argsize % 4));
+				copylen[j] = totsize * sizeof(char);
+				kbuf[j] = kmalloc (copylen[j]);
+				koffset[j] = kmalloc(sizeof(int32_t));
+				//memcpy(kbuf[j], argv[j], argsize);
+				err = copyinstr((const_userptr_t)argv[j], kbuf[j], argsize, &copylen[j]);
+				//if(copylen[j] != (size_t)argsize)
+					//return EFAULT;
+				//if(err != 0)
+					//return err;
 
-			// Assign the offset
-			err = copyin((userptr_t)(totsizecnt), koffset[i], sizeof(int32_t));
-			if(err != 0)
-				return err;
-			totsizecnt += totsize;
-			i++;
+				// Assign the offset
+				memcpy(koffset[j], &totsizecnt, sizeof(int32_t));
+				//err = copyin((userptr_t)(totsizecnt), koffset[j], sizeof(int32_t));
+				//if(err != 0)
+					//return err;
+				totsizecnt += totsize;
+				j++;
+			}
+			koffset[j] = NULL;
 		}
-	}
-	else
-		kprintf("user args null");
+		else
+			kprintf("user args null");
 
-	char *kprgname;
+	}
+
+	/*char *kprgname;
 	size_t copied;
 	if(prgname != NULL)
 	{
-		err = copyinstr((const_userptr_t)prgname, kprgname, strlen(prgname), &copied);
+		err = copyinstr((const_userptr_t)prgname, kprgname, strlen(prgname)+1, &copied);
 		if(copied != strlen(prgname))
 			return EFAULT;
 		if(err != 0)
 			return err;
-	}
+	}*/
 
 	/* Open the file. */
 	result = vfs_open(prgname, O_RDONLY, 0, &v);
@@ -492,7 +502,7 @@ sys_execv(userptr_t userprgname, userptr_t userargv[])
 	}
 
 	/* We should be a new thread. */
-	KASSERT(curthread->t_addrspace == NULL);
+	//KASSERT(curthread->t_addrspace == NULL);
 
 	/* Create a new address space. */
 	curthread->t_addrspace = as_create();
@@ -522,33 +532,51 @@ sys_execv(userptr_t userprgname, userptr_t userargv[])
 		return result;
 	}
 
+	j = 0;
 	// Starting address  of userstack from which args and pointers should be copied
-	vaddr_t userstckptr = stackptr - totsizecnt;
-	vaddr_t userargsptr = userstckptr + (vaddr_t)koffset[0];
+	vaddr_t initstckptr = stackptr - totsizecnt;
+	vaddr_t userstckptr = initstckptr;
+	vaddr_t userargsptr = userstckptr;
 	size_t usercopylen[argc];
 
-	while(koffset[i] != NULL)
+	if(argc != 0)
 	{
-		/* copyout user pointer (in kernel buffer) to user stack */
-		err = copyout(koffset[i],(userptr_t)userstckptr, sizeof(int32_t));
-		if(err != 0)
-			return err;
-		userstckptr += sizeof(int32_t);
+		for(j=0; j<argc; j++)
+		{
+			userargsptr =  initstckptr + (vaddr_t)(*koffset[j]);
 
-		/* Copyout user arguments (in kernel buffer) to user stack*/
-		err = copyoutstr((const char *)koffset,(userptr_t)userargsptr, copylen[i], &usercopylen[i]);
-		if(err != 0)
-			return err;
-		if(usercopylen[i] != copylen[i])
-			return EFAULT;
-		userargsptr += copylen[i];
-		i++;
+			/* copyout user pointer (in kernel buffer) to user stack */
+			err = copyout(&userargsptr, (userptr_t)userstckptr, sizeof(int32_t));
+			if(err != 0)
+				return err;
 
+			/* Copyout user arguments (in kernel buffer) to user stack*/
+			err = copyoutstr((const char *)kbuf[j],(userptr_t)userargsptr, copylen[j], &usercopylen[j]);
+			if(err != 0)
+				return err;
+			userstckptr += sizeof(int32_t);
+
+		}
+	}
+
+	userstckptr = initstckptr;
+	while(userstckptr != initstckptr + (vaddr_t)(*koffset[0]))
+	{
+		//kprintf("user address : %x",userstckptr);
+		//kprintf("user address : %x",userargsptr);
+		//kprintf("user stack : %x\n", *(int32_t *)userstckptr);
+		userstckptr+=4;
 	}
 
 	/* Warp to user mode. */
-	enter_new_process(argc /*argc*/, (userptr_t)stackptr /*userspace addr of argv (TODO userstckptr or stackptr?)*/,
-			  stackptr, entrypoint);
+	//enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
+		//	  stackptr, entrypoint);
+	userstckptr = initstckptr + (vaddr_t)(*koffset[0]);
+	//kprintf("user space address : %x",userstckptr);
+
+	enter_new_process(argc /*argc*/, (userptr_t)initstckptr /*userspace addr of argv (TODO userstckptr or stackptr?)*/,
+			initstckptr, entrypoint);
+
 
 	/* enter_new_process does not return. */
 	panic("enter_new_process returned\n");

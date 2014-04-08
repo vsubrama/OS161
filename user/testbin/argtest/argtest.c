@@ -43,8 +43,8 @@ main(int argc, char *argv[])
 	const char *tmp;
 	int i;
 
-	printf("argc: %d\n", argc);
-	printf("address arg[0] %x",*(unsigned int *)argv);
+	//printf("argc: %d\n", argc);
+	//printf("address arg[0] %x",*(unsigned int *)argv);
 	for (i=0; i<=argc; i++) {
 		tmp = argv[i];
 		if (tmp==NULL) {

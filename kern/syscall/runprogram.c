@@ -54,7 +54,7 @@
  * Calls vfs_open on progname and thus may destroy it.
  */
 int
-runprogram(char *progname, char *argv[])
+runprogram(char *progname, char *argv[], unsigned long argc)
 {
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
@@ -111,20 +111,22 @@ runprogram(char *progname, char *argv[])
 	kfree(con2);
 	//kprintf("IO fd's initialized\n");
 
-	int  j=0, err, argsize= 0;
-	int argc = 0, totsize = 0 , totsizecnt = 0;
+	unsigned long j = 0;
+	int  err, argsize= 0;
+	int  totsize = 0 , totsizecnt = 0;
 
-	// TODO : ONLY FOR TESTING PURPOSE. CHANGE WITHOUT FORGETTING - BABU
-	argv[4]  = NULL;
 
-	if(argv != NULL)
+
+	/*if(argv != NULL)
 	{
 		while(argv[j] != NULL)
 		{
 			argc++;
 			j++;
 		}
-	}
+	}*/
+
+
 
 	char *kbuf[argc];
 	int32_t *koffset[argc];
@@ -218,6 +220,7 @@ runprogram(char *progname, char *argv[])
 		/* thread_exit destroys curthread->t_addrspace */
 		return result;
 	}
+
 	j = 0;
 	// Starting address  of userstack from which args and pointers should be copied
 	vaddr_t initstckptr = stackptr - totsizecnt;
@@ -225,41 +228,22 @@ runprogram(char *progname, char *argv[])
 	vaddr_t userargsptr = userstckptr;
 	size_t usercopylen[argc];
 
-	//kprintf("Initial stackptr : %x\n",stackptr);
-	//kprintf("Initial initstckptr : %x\n",initstckptr);
-	//kprintf("Initial totsizecnt : %d\n",totsizecnt);
-
 	if(argc != 0)
 	{
-
-		//while(koffset[j] != NULL)
 		for(j=0; j<argc; j++)
 		{
 			userargsptr =  initstckptr + (vaddr_t)(*koffset[j]);
-			//kprintf("1. userargsptr %x\n",userargsptr);
-			//kprintf("1. userstckptr %x\n",userstckptr);
-			//kprintf("2. offset %d\n",*koffset[j]);
 
 			/* copyout user pointer (in kernel buffer) to user stack */
 			err = copyout(&userargsptr, (userptr_t)userstckptr, sizeof(int32_t));
-			//kprintf("2. userstckptr %u\n",userstckptr);
-			//kprintf("2. userargptr %u\n",userargsptr);
-
 			if(err != 0)
 				return err;
-
 
 			/* Copyout user arguments (in kernel buffer) to user stack*/
 			err = copyoutstr((const char *)kbuf[j],(userptr_t)userargsptr, copylen[j], &usercopylen[j]);
 			if(err != 0)
 				return err;
-
-			//if(usercopylen[j] != copylen[j])
-				//return EFAULT;
-
 			userstckptr += sizeof(int32_t);
-			//kprintf("3. userstckptr %x\n",userstckptr);
-
 
 		}
 	}

@@ -105,7 +105,7 @@ cmd_progthread(void *ptr, unsigned long nargs)
 
 
 	//kprintf("progname : %s\n", progname);
-	result = runprogram(args[0], args);
+	result = runprogram(args[0], args, nargs);
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
 			strerror(result));
