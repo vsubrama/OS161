@@ -187,14 +187,6 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
     if(exitcode == (void *)0x40000000)  // Invalid pointer check
         return EFAULT;
 
-    // if exitcode alignment is not proper ?
-	//if(exitcode == (int32_t *)0x7fffff9d)
-		//return EFAULT;
-
-	// if exitcode alignment is not proper ?
-	//int result = -1;
-	//copyin((userptr_t)exitcode, testexitcode, sizeof(int32_t));
-	//result =
     int i=0;
     char * checkptr = (char *)exitcode;
     while(checkptr[i] != 0)
@@ -208,10 +200,7 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 	if(sizeof(checkptr)%4 != 0)
 		return EFAULT;
 
-
-
 	// if flags are not proper
-	//if(flags != WNOHANG && flags != WUNTRACED)
 	if(flags < 0 || flags > 2)
 		return EINVAL;
 
@@ -227,7 +216,7 @@ sys_waitpid(int32_t *retval, pid_t pid, int32_t *exitcode, int32_t flags)
 	{
 		if(curthread->t_process->p_pid_parent == childprocess->p_pid_parent)
 			return ECHILD;
-		//if(curthread->t_process)
+
 	}
 
 	if(childprocess->p_exited)
@@ -350,14 +339,6 @@ sys_fork(int32_t *retval, struct trapframe *tf)
 
 	/* Addres space and file table cloning from parent */
 	as_copy(parent->p_thread->t_addrspace, &child_addrspce);
-
-	// File table moved to Thread structure
-	/* TODO :file table as array now change it to ptr if possible*/
-	/*for (i = 0; i < MAX_FILE; i++) {
-		child->p_filetable[i] =  parent->p_filetable;
-		child->p_filetable[i].ref_count++;
-
-	}*/
 
 	/* disable interrupts*/
 	//spl  = splhigh();
