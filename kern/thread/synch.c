@@ -161,6 +161,7 @@ lock_create(const char *name)
                 kfree(lock);
                 return NULL;
         }
+
         //added by vasanth
         lock->lock_owner=NULL;
         lock->lock_wchan = wchan_create(lock->lk_name);

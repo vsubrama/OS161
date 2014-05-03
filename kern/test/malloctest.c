@@ -47,8 +47,8 @@
  * threads at once.
  */
 
-#define NTRIES   1200
-#define ITEMSIZE  997
+#define NTRIES   10
+#define ITEMSIZE  2048
 #define NTHREADS  8
 
 static
@@ -60,6 +60,7 @@ mallocthread(void *sm, unsigned long num)
 	void *oldptr=NULL;
 	void *oldptr2=NULL;
 	int i;
+
 	for (i=0; i<NTRIES; i++) {
 		ptr = kmalloc(ITEMSIZE);
 		if (ptr==NULL) {
@@ -97,6 +98,8 @@ malloctest(int nargs, char **args)
 
 	kprintf("Starting kmalloc test...\n");
 	mallocthread(NULL, 0);
+	//int *chumma = kmalloc(997);
+	//*chumma = 32;
 	kprintf("kmalloc test done\n");
 
 	return 0;

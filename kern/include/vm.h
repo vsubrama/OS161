@@ -44,6 +44,46 @@
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
+enum page_state
+{
+	FREE,
+	FIXED,
+	DIRTY,
+	CLEAN
+};
+
+/**
+ * CoreMap Structure for storing information
+ * about the pages in physical memory
+ *
+ * Author : Babu
+ */
+struct page
+{
+	// Address space
+	struct addrspace *addrspce;
+
+	// Virtual Address
+	vaddr_t virtual_addr;
+
+	// Physical page state (used for swapping)
+	enum page_state page_state;
+
+	// Incase of n-continuous page allocation store that information also
+	int32_t num_pages;
+
+	// For FIFO- Paging algorithm
+	uint64_t timestamp;
+
+};
+
+#define PTE_SIZE (sizeof(struct page))
+
+// CoreMap
+struct page *pages;
+
+// Total Page number
+uint32_t page_num;
 
 /* Initialization function */
 void vm_bootstrap(void);
@@ -54,6 +94,14 @@ int vm_fault(int faulttype, vaddr_t faultaddress);
 /* Allocate/free kernel heap pages (called by kmalloc/kfree) */
 vaddr_t alloc_kpages(int npages);
 void free_kpages(vaddr_t addr);
+
+/*Allocate/free user pages (called by malloc/free)*/
+vaddr_t page_alloc(void);
+vaddr_t page_nalloc(unsigned long npages);
+void page_free(vaddr_t addr);
+
+/*Make the page available by swapping or by flushing*/
+int32_t make_page_avail(struct page *page);
 
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);

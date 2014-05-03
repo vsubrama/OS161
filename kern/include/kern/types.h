@@ -79,6 +79,7 @@ typedef __u64 __rlim_t;    /* Resource limit quantity */
 typedef __u8 __sa_family_t;/* Socket address family */
 typedef __i64 __time_t;    /* Time in seconds */
 typedef __i32 __uid_t;     /* User ID */
+//typedef __u32 __pstate_t;  /* Physical Page State*/
 
 typedef int __nfds_t;    /* Number of file handles */
 typedef int __socklen_t;   /* Socket-related length */
