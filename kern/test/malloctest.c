@@ -47,8 +47,8 @@
  * threads at once.
  */
 
-#define NTRIES   10
-#define ITEMSIZE  2048
+#define NTRIES   1200
+#define ITEMSIZE  997
 #define NTHREADS  8
 
 static

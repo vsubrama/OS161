@@ -77,7 +77,7 @@ struct page
 
 };
 
-#define PTE_SIZE (sizeof(struct page))
+#define CME_SIZE (sizeof(struct page))
 
 // CoreMap
 struct page *pages;

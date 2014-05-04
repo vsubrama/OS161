@@ -62,31 +62,38 @@ vm_bootstrap(void)
 	paddr_t paddr_last = 0;
 	paddr_t paddr_free = 0;
 
+	lock_coremap = lock_create("coremap_lock");
+
 	/* Initialize coremap */
 	ram_getsize(&paddr_first, &paddr_last);
 
 
-	page_num = ROUNDUP(paddr_last, PAGE_SIZE) / PAGE_SIZE;// :| Why rounddown?
-	//page_num = (paddr_last - paddr_free) / PAGE_SIZE;
+	//page_num = ROUNDUP(paddr_last, PAGE_SIZE) / PAGE_SIZE;// :| Why rounddown?
+	//page_num = ROUNDDOWN(paddr_last, PAGE_SIZE) / PAGE_SIZE;
+	paddr_t ramsize = (paddr_last - paddr_first);
+	page_num =  (ramsize - (ramsize % 4)) / PAGE_SIZE;
 
 
 	/* pages should be a kernel virtual address !!  */
 	pages = (struct page *) PADDR_TO_KVADDR(paddr_first);
-	paddr_free = paddr_first + (page_num * PTE_SIZE); // core map size
+	paddr_free = paddr_first + (page_num * CME_SIZE); // core map size
 
 	// Mapping coremap elements(page table entry - PTE) to their respective virtual memory.
-	vaddr_t tmp_addr = PADDR_TO_KVADDR(paddr_free);
+	paddr_t tmp_addr = paddr_first;
 	for (uint32_t i = 0; i < page_num; i++)
 	{
-		(pages + (i * PTE_SIZE))-> virtual_addr = tmp_addr;
-		(pages + (i * PTE_SIZE))-> num_pages = 1;
-		(pages + (i * PTE_SIZE))-> page_state = FREE;
-		(pages + (i * PTE_SIZE))-> timestamp = 0;
+		(pages + i)-> virtual_addr = PADDR_TO_KVADDR(tmp_addr);
+		(pages + i)-> num_pages = 1;
+		(pages + i)-> timestamp = 0;
+		if(tmp_addr < paddr_free)
+			(pages + i)-> page_state = FIXED;
+		else
+			(pages + i)-> page_state = FREE;
 		tmp_addr += PAGE_SIZE;
 	}
 
 	/*initialize page lock*/
-	lock_coremap = lock_create("coremap_lock");
+
 	KASSERT(lock_coremap != NULL);
 }
 
@@ -116,12 +123,17 @@ vaddr_t
 alloc_kpages(int npages)
 {
 
-	paddr_t alloc_mem = 0;
+	vaddr_t alloc_mem = 0;
 	if(lock_coremap != NULL)
 		alloc_mem = page_nalloc(npages);
 	else
-		alloc_mem = getppages(npages);
-	return PADDR_TO_KVADDR(alloc_mem);
+	{
+		if(getppages(npages) != 0)
+			alloc_mem = PADDR_TO_KVADDR(getppages(npages));
+		else
+			panic("ERROR : Zero address returned.");
+	}
+	return alloc_mem;
 }
 
 void 
@@ -133,21 +145,26 @@ free_kpages(vaddr_t addr)
 
 	while(find_page->virtual_addr != addr)
 	{
-		find_page += PTE_SIZE;
+		find_page++;
 	}
 
 	//Check whether this is the page we are looking for to de-allocate.
 	KASSERT(find_page->virtual_addr == addr);
 
-	int no_dealloc = find_page->num_pages;
-	for (int i = 0; i < no_dealloc; ++i)
+	// if the address to be freed belongs to kernel then dont do anything
+	// else free it.
+	if(find_page->page_state != FIXED)
 	{
-		find_page->page_state =  FREE;
-		find_page->timestamp = 0;
-		find_page->num_pages = 1;
-		as_destroy(find_page->addrspce);
+		int no_dealloc = find_page->num_pages;
+		for (int i = 0; i < no_dealloc; ++i)
+		{
+			find_page->page_state =  FREE;
+			find_page->timestamp = 0;
+			find_page->num_pages = 1;
+			as_destroy(find_page->addrspce);
 
-		find_page += (PTE_SIZE);
+			find_page ++;
+		}
 	}
 
 	lock_release(lock_coremap);
@@ -164,7 +181,7 @@ page_free(vaddr_t addr)
 
 	while(find_page->virtual_addr != addr)
 	{
-		find_page += PTE_SIZE;
+		find_page ++;
 	}
 
 	//Check whether this is the page we are looking for to de-allocate.
@@ -178,7 +195,7 @@ page_free(vaddr_t addr)
 		find_page->num_pages = 1;
 		//as_destroy(find_page->addrspce); user space ---??
 
-		find_page += (PTE_SIZE);
+		find_page ++;;
 	}
 
 	lock_release(lock_coremap);
@@ -211,7 +228,7 @@ page_alloc()
 		}*/
 		if(free_page ->page_state == FREE) //if(free_page ->page_state != FIXED)
 			break;
-		free_page += PTE_SIZE;
+		free_page ++;
 	}
 
 	//free_page = pages + (oldest_page_num * PTE_SIZE);
@@ -251,11 +268,11 @@ page_nalloc(unsigned long npages)
 	uint32_t free_page_cnt = 0;
 	for(start_page=0;start_page < page_num;start_page++)
 	{
-		if(free_page ->page_state == FREE)
+		if(free_page->page_state == FREE)
 		{
-			for (free_page_cnt=0; free_page_cnt<npages; free_page_cnt++)
+			for (free_page_cnt=1; free_page_cnt<npages; free_page_cnt++)
 			{
-				free_page += PTE_SIZE;
+				free_page ++;
 				if(free_page->page_state != FREE)
 					break;
 			}
@@ -264,17 +281,27 @@ page_nalloc(unsigned long npages)
 				break;
 			else
 				start_page += free_page_cnt - 1;
-
-			free_page += PTE_SIZE;
 		}
+		free_page ++;
 	}
+
+	// Check at the end of the iteration whether we got the
+	// number of pages we want
+	KASSERT(free_page_cnt == npages);
 
 	// what if there is no free  page?
 	// Follow page replacement algorithm
-	// As of now we take a random page and flush it
+	// As of now we take a random NOT FIXED page and flush it
+
 	if(free_page_cnt  == 0)
 	{
 		free_page = pages;
+		for(start_page=0;start_page < page_num;start_page++)
+		{
+			if(free_page->page_state != FIXED)
+				break;
+			free_page++;
+		}
 		free_page_cnt = npages;
 	}
 
@@ -282,7 +309,7 @@ page_nalloc(unsigned long npages)
 	// number of pages we want
 	KASSERT(free_page_cnt == npages);
 
-	free_page = pages + (start_page * PTE_SIZE);
+	free_page = pages + start_page;
 
 	// Make the entire page available
 
@@ -290,7 +317,7 @@ page_nalloc(unsigned long npages)
 	{
 		make_page_avail(free_page);
 
-		free_page->addrspce = as_create();
+		//free_page->addrspce = as_create();
 		free_page->num_pages = npages;
 
 		time_t current_time = 0;
@@ -303,13 +330,13 @@ page_nalloc(unsigned long npages)
 		// Zeroing the page before returning
 		bzero((void *)free_page->virtual_addr, PAGE_SIZE);
 
-		free_page += PTE_SIZE;
+		free_page ++;
 
 	}
 	lock_release(lock_coremap);
 
 	// Start of n chunks of free pages
-	free_page = pages + (start_page * PTE_SIZE);
+	free_page = pages + start_page;
 	return free_page->virtual_addr;
 
 }
@@ -325,7 +352,7 @@ make_page_avail(struct page *free_page)
 {
 
 	// as of now just making the page state as free by flushing it
-	// TODO : implement swapping in this function
+	// TODO : implement swapping in thisas_create function
 
 	// Allocating it as dirty for the first time as the disk will not have a copy
 	free_page->page_state = DIRTY;
