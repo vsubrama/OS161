@@ -92,8 +92,6 @@ vm_bootstrap(void)
 		tmp_addr += PAGE_SIZE;
 	}
 
-	/*initialize page lock*/
-
 	KASSERT(lock_coremap != NULL);
 }
 
@@ -187,15 +185,21 @@ page_free(vaddr_t addr)
 	//Check whether this is the page we are looking for to de-allocate.
 	KASSERT(find_page->virtual_addr == addr);
 
-	int32_t no_dealloc = find_page->num_pages;
-	for (int32_t i = 0; i < no_dealloc; ++i)
+	// if the address to be freed belongs to kernel then dont do anything
+	// else free it.
+	if(find_page->page_state != FIXED)
 	{
-		find_page->page_state =  FREE;
-		find_page->timestamp = 0;
-		find_page->num_pages = 1;
-		//as_destroy(find_page->addrspce); user space ---??
+		int32_t no_dealloc = find_page->num_pages;
+		for (int32_t i = 0; i < no_dealloc; ++i)
+		{
+			find_page->page_state =  FREE;
+			find_page->timestamp = 0;
+			find_page->num_pages = 1;
+			//as_destroy(find_page->addrspce); user space ---??
 
-		find_page ++;;
+			find_page ++;;
+		}
+
 	}
 
 	lock_release(lock_coremap);
@@ -236,7 +240,7 @@ page_alloc()
 	// The oldest page has to be made available and used
 	make_page_avail(free_page);
 
-	free_page->addrspce = as_create();
+	//free_page->addrspce = as_create();
 	free_page->num_pages = 1;
 
 	time_t current_time = 0;
