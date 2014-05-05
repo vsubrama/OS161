@@ -141,13 +141,19 @@ free_kpages(vaddr_t addr)
 
 	struct page *find_page = pages;
 
-	while(find_page->virtual_addr != addr)
+	uint32_t page_cnt = 0;
+	//while(find_page->virtual_addr != addr)
+	for(page_cnt=0;page_cnt < page_num;page_cnt++)
 	{
-		find_page++;
+		if(find_page->virtual_addr == addr)
+			break;
+		find_page ++;
 	}
 
 	//Check whether this is the page we are looking for to de-allocate.
-	KASSERT(find_page->virtual_addr == addr);
+	//KASSERT(find_page->virtual_addr == addr);
+	if(find_page->virtual_addr != addr)
+		return;
 
 	// if the address to be freed belongs to kernel then dont do anything
 	// else free it.
@@ -160,7 +166,6 @@ free_kpages(vaddr_t addr)
 			find_page->timestamp = 0;
 			find_page->num_pages = 1;
 			as_destroy(find_page->addrspce);
-
 			find_page ++;
 		}
 	}
@@ -177,13 +182,19 @@ page_free(vaddr_t addr)
 
 	struct page *find_page = pages;
 
-	while(find_page->virtual_addr != addr)
+	uint32_t page_cnt = 0;
+	//while(find_page->virtual_addr != addr)
+	for(page_cnt=0;page_cnt < page_num;page_cnt++)
 	{
+		if(find_page->virtual_addr == addr)
+			break;
 		find_page ++;
 	}
 
 	//Check whether this is the page we are looking for to de-allocate.
-	KASSERT(find_page->virtual_addr == addr);
+	//KASSERT(find_page->virtual_addr == addr);
+	if(find_page->virtual_addr != addr)
+		return;
 
 	// if the address to be freed belongs to kernel then dont do anything
 	// else free it.
