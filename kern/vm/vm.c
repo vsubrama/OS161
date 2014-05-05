@@ -137,7 +137,7 @@ alloc_kpages(int npages)
 void 
 free_kpages(vaddr_t addr)
 {
-	lock_acquire(lock_coremap);
+	//lock_acquire(lock_coremap);
 
 	struct page *find_page = pages;
 
@@ -153,7 +153,11 @@ free_kpages(vaddr_t addr)
 	//Check whether this is the page we are looking for to de-allocate.
 	//KASSERT(find_page->virtual_addr == addr);
 	if(find_page->virtual_addr != addr)
+	{
+		//lock_release(lock_coremap);
 		return;
+	}
+
 
 	// if the address to be freed belongs to kernel then dont do anything
 	// else free it.
@@ -166,11 +170,15 @@ free_kpages(vaddr_t addr)
 			find_page->timestamp = 0;
 			find_page->num_pages = 1;
 			as_destroy(find_page->addrspce);
-			find_page ++;
+			find_page ++;{
+				lock_release(lock_coremap);
+				return;
+			}
+
 		}
 	}
 
-	lock_release(lock_coremap);
+	//lock_release(lock_coremap);
 
 }
 
@@ -178,7 +186,7 @@ free_kpages(vaddr_t addr)
 void
 page_free(vaddr_t addr)
 {
-	lock_acquire(lock_coremap);
+	//lock_acquire(lock_coremap);
 
 	struct page *find_page = pages;
 
@@ -194,7 +202,10 @@ page_free(vaddr_t addr)
 	//Check whether this is the page we are looking for to de-allocate.
 	//KASSERT(find_page->virtual_addr == addr);
 	if(find_page->virtual_addr != addr)
+	{
+	//	lock_release(lock_coremap);
 		return;
+	}
 
 	// if the address to be freed belongs to kernel then dont do anything
 	// else free it.
@@ -213,7 +224,7 @@ page_free(vaddr_t addr)
 
 	}
 
-	lock_release(lock_coremap);
+	//lock_release(lock_coremap);
 
 }
 
@@ -299,10 +310,6 @@ page_nalloc(unsigned long npages)
 		}
 		free_page ++;
 	}
-
-	// Check at the end of the iteration whether we got the
-	// number of pages we want
-	KASSERT(free_page_cnt == npages);
 
 	// what if there is no free  page?
 	// Follow page replacement algorithm
