@@ -399,11 +399,18 @@ vm_tlbshootdown_all(void)
 void
 vm_tlbshootdown(const struct tlbshootdown *ts)
 {
-	lock_acquire(lock_coremap);
+	//lock_acquire(lock_coremap);
 
-	/* TODO */
+	int i,spl;
 
-	lock_release(lock_coremap);
+	    spl = splhigh();
+
+	    for (i=0; i<NUM_TLB; i++)
+	        tlb_write(TLBHI_INVALID(i),TLBLO_INVALID(),i);
+
+	    splx(spl);
+
+	//lock_release(lock_coremap);
 	(void)ts;
 
 }

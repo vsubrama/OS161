@@ -47,6 +47,17 @@ struct vnode;
  *
  * You write this.
  */
+struct pagetable{
+	vaddr_t viraddress;
+	paddr_t phyaddress;
+	struct pagetable *next;
+};
+
+struct region{
+	vaddr_t viraddress;
+	size_t numpages;
+	struct region *next;
+};
 
 struct addrspace {
 #if OPT_DUMBVM
@@ -59,6 +70,12 @@ struct addrspace {
         paddr_t as_stackpbase;
 #else
         /* Put stuff here for your VM system */
+        struct region *reg;
+        struct pagetable *table;
+        vaddr_t sbase;
+        vaddr_t stop;
+        vaddr_t hbase;
+        vaddr_t htop;
 #endif
 };
 

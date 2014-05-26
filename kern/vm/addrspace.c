@@ -52,7 +52,10 @@ as_create(void)
 	/*
 	 * Initialize as needed.
 	 */
-
+	as->table = NULL;
+	as->reg = NULL;
+	as->sbase = 0;
+	as->stop = 0;
 	return as;
 }
 
@@ -65,14 +68,29 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	if (newas==NULL) {
 		return ENOMEM;
 	}
-
-	/*
-	 * Write this.
-	 */
-
-	(void)old;
-	
-	*ret = newas;
+	struct addrspace *new;
+	int numRegTab = 0;
+		new = as_create();
+		if (new==NULL) {
+			return ENOMEM;
+		}
+		new->hbase = old->hbase;
+		new->htop = old->htop;
+		new->sbase = old->sbase;
+		new->stop = old->stop;
+		while(old->reg != NULL)
+		{
+			numRegTab++;
+		}
+		memmove(new->reg,old->reg,(sizeof(struct region)* numRegTab));
+		numRegTab = 0;
+		while(old->table != NULL)
+		{
+			numRegTab++;
+		}
+		memmove(new->table,old->table,(sizeof(struct pagetable)* numRegTab));
+		numRegTab = 0;
+		*ret = newas;
 	return 0;
 }
 
@@ -82,7 +100,27 @@ as_destroy(struct addrspace *as)
 	/*
 	 * Clean up as needed.
 	 */
-	
+	struct region *reg;
+	struct pagetable *page;
+
+		while (as->reg != NULL)
+		{
+			reg = as->reg;
+			as->reg = as->reg->next;
+			kfree(reg);
+		}
+
+		while(as->table != NULL)
+		{
+			page = as->table;
+			if(page->phyaddress != 0)
+			{
+				page_free(page->phyaddress);
+				as->table = as->table->next;
+				kfree(page);
+			}
+
+		}
 	kfree(as);
 }
 
@@ -94,6 +132,7 @@ as_activate(struct addrspace *as)
 	 */
 
 	(void)as;  // suppress warning until code gets written
+	vm_tlbshootdown_all();
 }
 
 /*
@@ -114,13 +153,44 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t sz,
 	 * Write this.
 	 */
 
-	(void)as;
-	(void)vaddr;
-	(void)sz;
 	(void)readable;
 	(void)writeable;
 	(void)executable;
-	return EUNIMP;
+
+	struct region *reg,*tmp;
+
+	sz += vaddr & ~(vaddr_t)PAGE_FRAME; //Aligning Regions
+	vaddr &= PAGE_FRAME;
+
+		/* ...and now the length. */
+	sz = (sz + PAGE_SIZE - 1) & PAGE_FRAME;
+
+		// Update heap_start
+	as->hbase = vaddr + (sz/PAGE_SIZE) * PAGE_SIZE;
+	as->htop = vaddr + (sz/PAGE_SIZE) * PAGE_SIZE;
+
+		// Record region (to be used in vm_fault)
+		reg = kmalloc(sizeof(struct region));
+		if (reg == NULL)return ENOMEM;
+		reg->viraddress = vaddr;
+		reg->numpages = sz / PAGE_SIZE;
+		/*reg->readable = readable;
+		reg->writeable = writeable;
+		reg->executable = executable;*/
+		if(as->reg == NULL)
+			{
+				as->reg = reg;
+			}
+		else
+			{
+				tmp = as->reg;
+				while(tmp->next != NULL)
+				{
+					tmp = tmp->next;
+				}
+				tmp->next = reg;
+			}
+		return 0;
 }
 
 int
@@ -129,8 +199,39 @@ as_prepare_load(struct addrspace *as)
 	/*
 	 * Write this.
 	 */
-
-	(void)as;
+	struct region *reg;
+	struct pagetable *page,*temp;
+	reg = as->reg;
+	while(reg!=NULL)
+	{
+		size_t i;
+		size_t cnt = reg->numpages;
+		vaddr_t reg_base = reg->viraddress;
+		temp = as->table;
+		while(temp->next != NULL)
+		{
+			temp = temp->next;
+		}
+		for(i=0;i<cnt;i++)
+		{
+		 	page = (struct pagetable *)kmalloc(sizeof(struct pagetable));
+			KASSERT(page!=NULL);
+			//virtual address being computed according to the base address for the region.
+			page->viraddress = reg_base + i * PAGE_SIZE;
+			page->phyaddress = page_alloc();
+			page->next = NULL;
+			if(temp == NULL)
+			{
+					as->table=temp=page;
+			}
+			else
+			{
+					temp->next = page;
+					temp = temp->next;
+			}
+		}
+		reg = reg->next;
+	}
 	return 0;
 }
 
@@ -152,9 +253,9 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 	 * Write this.
 	 */
 
-	(void)as;
-
 	/* Initial user-level stack pointer */
+	as->sbase = USERSTACK;
+	as->stop =USERSTACK;
 	*stackptr = USERSTACK;
 	
 	return 0;
